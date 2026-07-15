@@ -1,6 +1,6 @@
 package com.mexicolindotours.controller;
 
-import com.mexicolindotours.dto.ClienteDTO;
+import com.mexicolindotours.dto.*;
 import com.mexicolindotours.model.Cliente;
 import com.mexicolindotours.service.ClienteService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,11 +18,9 @@ public class ClienteController {
 	private ClienteService clienteService;
 
 	@PostMapping
-	public ResponseEntity<?> crear(@RequestParam String nombre,
-								   @RequestParam(required = false) String telefono,
-								   @RequestParam(required = false) String notas) {
+	public ResponseEntity<?> crear(@RequestBody ClienteCreateRequest request) {
 		try {
-			Cliente cl = clienteService.crear(nombre, telefono, notas);
+			Cliente cl = clienteService.crear(request.getNombre(), request.getTelefono(), request.getEmail());
 			return ResponseEntity.status(HttpStatus.CREATED).body(mapToDTO(cl));
 		} catch (Exception e) {
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
@@ -43,12 +41,9 @@ public class ClienteController {
 	}
 
 	@PutMapping("/{id}")
-	public ResponseEntity<?> actualizar(@PathVariable Long id,
-										@RequestParam(required = false) String nombre,
-										@RequestParam(required = false) String telefono,
-										@RequestParam(required = false) String notas) {
+	public ResponseEntity<?> actualizar(@PathVariable Long id, @RequestBody ClienteUpdateRequest request) {
 		try {
-			Cliente cl = clienteService.actualizar(id, nombre, telefono, notas);
+			Cliente cl = clienteService.actualizar(id, request.getNombre(), request.getTelefono(), request.getEmail());
 			return ResponseEntity.ok(mapToDTO(cl));
 		} catch (IllegalArgumentException e) {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());

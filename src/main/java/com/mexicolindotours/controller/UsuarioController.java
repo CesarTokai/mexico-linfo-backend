@@ -1,6 +1,6 @@
 package com.mexicolindotours.controller;
 
-import com.mexicolindotours.dto.UsuarioDTO;
+import com.mexicolindotours.dto.*;
 import com.mexicolindotours.model.Usuario;
 import com.mexicolindotours.service.UsuarioService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,12 +18,10 @@ public class UsuarioController {
 	private UsuarioService usuarioService;
 
 	@PostMapping
-	public ResponseEntity<?> crear(@RequestParam String nombre,
-								   @RequestParam String correo,
-								   @RequestParam String password,
-								   @RequestParam(defaultValue = "GESTOR") Usuario.Rol rol) {
+	public ResponseEntity<?> crear(@RequestBody UsuarioCreateRequest request) {
 		try {
-			Usuario u = usuarioService.crearUsuario(nombre, correo, password, rol);
+			Usuario.Rol rol = request.getRol() != null ? Usuario.Rol.valueOf(request.getRol()) : Usuario.Rol.GESTOR;
+			Usuario u = usuarioService.crearUsuario(request.getNombre(), request.getEmail(), request.getPassword(), rol);
 			return ResponseEntity.status(HttpStatus.CREATED).body(mapToDTO(u));
 		} catch (IllegalArgumentException e) {
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
@@ -44,12 +42,10 @@ public class UsuarioController {
 	}
 
 	@PutMapping("/{id}")
-	public ResponseEntity<?> actualizar(@PathVariable Long id,
-										@RequestParam(required = false) String nombre,
-										@RequestParam(required = false) String correo,
-										@RequestParam(required = false) Usuario.Rol rol) {
+	public ResponseEntity<?> actualizar(@PathVariable Long id, @RequestBody UsuarioUpdateRequest request) {
 		try {
-			Usuario u = usuarioService.actualizarUsuario(id, nombre, correo, rol);
+			Usuario.Rol rol = request.getRol() != null ? Usuario.Rol.valueOf(request.getRol()) : null;
+			Usuario u = usuarioService.actualizarUsuario(id, request.getNombre(), null, rol);
 			return ResponseEntity.ok(mapToDTO(u));
 		} catch (IllegalArgumentException e) {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
