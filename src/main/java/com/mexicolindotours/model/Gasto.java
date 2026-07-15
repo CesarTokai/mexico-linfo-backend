@@ -2,6 +2,7 @@ package com.mexicolindotours.model;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -23,8 +24,14 @@ public class Gasto {
 	@Column(length = 160)
 	private String descripcion;
 
+	@Column(nullable = false)
+	private LocalDate fecha;
+
 	@Column(nullable = false, precision = 10, scale = 2)
 	private BigDecimal monto;
+
+	@Column(length = 255)
+	private String notas;
 
 	@Column(nullable = false, updatable = false)
 	private LocalDateTime createdAt = LocalDateTime.now();
@@ -40,6 +47,14 @@ public class Gasto {
 		this.viaje = viaje;
 		this.tipo = tipo;
 		this.monto = monto;
+		this.fecha = LocalDate.now();
+	}
+
+	public Gasto(Viaje viaje, Tipo tipo, LocalDate fecha, BigDecimal monto) {
+		this.viaje = viaje;
+		this.tipo = tipo;
+		this.fecha = fecha;
+		this.monto = monto;
 	}
 
 	public Long getId() { return id; }
@@ -50,8 +65,12 @@ public class Gasto {
 	public void setTipo(Tipo tipo) { this.tipo = tipo; }
 	public String getDescripcion() { return descripcion; }
 	public void setDescripcion(String descripcion) { this.descripcion = descripcion; }
+	public LocalDate getFecha() { return fecha; }
+	public void setFecha(LocalDate fecha) { this.fecha = fecha; }
 	public BigDecimal getMonto() { return monto; }
 	public void setMonto(BigDecimal monto) { this.monto = monto; }
+	public String getNotas() { return notas; }
+	public void setNotas(String notas) { this.notas = notas; }
 	public LocalDateTime getCreatedAt() { return createdAt; }
 
 }

@@ -20,10 +20,16 @@ public class PagoService {
 	private ViajeRepository viajeRepository;
 
 	public Pago crear(Long viajeId, Pago.Tipo tipo, LocalDate fecha, BigDecimal monto) {
+		return crear(viajeId, tipo, fecha, monto, null, null);
+	}
+
+	public Pago crear(Long viajeId, Pago.Tipo tipo, LocalDate fecha, BigDecimal monto, String metodo, String notas) {
 		Viaje viaje = viajeRepository.findById(viajeId)
 				.orElseThrow(() -> new IllegalArgumentException("Viaje no encontrado"));
 
 		Pago pago = new Pago(viaje, tipo, fecha, monto);
+		pago.setMetodo(metodo);
+		pago.setNotas(notas);
 		return pagoRepository.save(pago);
 	}
 

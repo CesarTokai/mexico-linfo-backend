@@ -1,8 +1,6 @@
 package com.mexicolindotours.controller;
 
-import com.mexicolindotours.dto.ViajeDTO;
-import com.mexicolindotours.dto.PagoDTO;
-import com.mexicolindotours.dto.GastoDTO;
+import com.mexicolindotours.dto.*;
 import com.mexicolindotours.model.Viaje;
 import com.mexicolindotours.model.Pago;
 import com.mexicolindotours.model.Gasto;
@@ -13,8 +11,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -32,15 +28,15 @@ public class ViajeController {
 	private GastoService gastoService;
 
 	@PostMapping
-	public ResponseEntity<?> crear(@RequestParam Long clienteId,
-								   @RequestParam Long camionetaId,
-								   @RequestParam(required = false) Long choferId,
-								   @RequestParam String concepto,
-								   @RequestParam LocalDate fechaInicio,
-								   @RequestParam LocalDate fechaFin,
-								   @RequestParam BigDecimal costoTotal) {
+	public ResponseEntity<?> crear(@RequestBody ViajeCreateRequest request) {
 		try {
-			Viaje v = viajeService.crear(clienteId, camionetaId, choferId, concepto, fechaInicio, fechaFin, costoTotal);
+			Viaje v = viajeService.crear(request.getClienteId(), request.getCamionetaId(),
+										request.getChoferId(), request.getConcepto(),
+										request.getFechaInicio(), request.getFechaFin(),
+										request.getCostoTotal());
+			if (request.getNotas() != null) {
+				v.setNotas(request.getNotas());
+			}
 			return ResponseEntity.status(HttpStatus.CREATED).body(mapToDTO(v));
 		} catch (IllegalArgumentException e) {
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
@@ -76,15 +72,14 @@ public class ViajeController {
 	}
 
 	@PutMapping("/{id}")
-	public ResponseEntity<?> actualizar(@PathVariable Long id,
-										@RequestParam(required = false) String concepto,
-										@RequestParam(required = false) LocalDate fechaInicio,
-										@RequestParam(required = false) LocalDate fechaFin,
-										@RequestParam(required = false) BigDecimal costoTotal,
-										@RequestParam(required = false) Integer kmInicial,
-										@RequestParam(required = false) Long choferId) {
+	public ResponseEntity<?> actualizar(@PathVariable Long id, @RequestBody ViajeUpdateRequest request) {
 		try {
-			Viaje v = viajeService.actualizarViaje(id, concepto, fechaInicio, fechaFin, costoTotal, kmInicial, choferId);
+			Viaje v = viajeService.actualizarViaje(id, request.getConcepto(), request.getFechaInicio(),
+													request.getFechaFin(), request.getCostoTotal(),
+													request.getKmInicial(), request.getChoferId());
+			if (request.getNotas() != null) {
+				v.setNotas(request.getNotas());
+			}
 			return ResponseEntity.ok(mapToDTO(v));
 		} catch (IllegalArgumentException e) {
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
@@ -92,10 +87,9 @@ public class ViajeController {
 	}
 
 	@PutMapping("/{id}/finalizar")
-	public ResponseEntity<?> finalizar(@PathVariable Long id,
-									   @RequestParam Integer kmFinal) {
+	public ResponseEntity<?> finalizar(@PathVariable Long id, @RequestBody ViajeFinalizarRequest request) {
 		try {
-			Viaje v = viajeService.finalizarViaje(id, kmFinal);
+			Viaje v = viajeService.finalizarViaje(id, request.getKmFinal());
 			return ResponseEntity.ok(mapToDTO(v));
 		} catch (IllegalArgumentException e) {
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
@@ -103,10 +97,9 @@ public class ViajeController {
 	}
 
 	@PutMapping("/{id}/estado")
-	public ResponseEntity<?> cambiarEstado(@PathVariable Long id,
-										   @RequestParam Viaje.Estado estado) {
+	public ResponseEntity<?> cambiarEstado(@PathVariable Long id, @RequestBody ViajeCambiarEstadoRequest request) {
 		try {
-			Viaje v = viajeService.actualizarEstado(id, estado);
+			Viaje v = viajeService.actualizarEstado(id, Viaje.Estado.valueOf(request.getEstado()));
 			return ResponseEntity.ok(mapToDTO(v));
 		} catch (IllegalArgumentException e) {
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
@@ -125,12 +118,11 @@ public class ViajeController {
 
 	// Pagos
 	@PostMapping("/{id}/pagos")
-	public ResponseEntity<?> agregarPago(@PathVariable Long id,
-										 @RequestParam Pago.Tipo tipo,
-										 @RequestParam LocalDate fecha,
-										 @RequestParam BigDecimal monto) {
+	public ResponseEntity<?> agregarPago(@PathVariable Long id, @RequestBody PagoCreateRequest request) {
 		try {
-			Pago p = pagoService.crear(id, tipo, fecha, monto);
+			Pago p = pagoService.crear(id, Pago.Tipo.valueOf(request.getTipo()),
+									   request.getFechaPago(), request.getMonto(),
+									   request.getMetodo(), request.getNotas());
 			return ResponseEntity.status(HttpStatus.CREATED).body(mapPagoToDTO(p));
 		} catch (IllegalArgumentException e) {
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
@@ -155,12 +147,10 @@ public class ViajeController {
 
 	// Gastos
 	@PostMapping("/{id}/gastos")
-	public ResponseEntity<?> agregarGasto(@PathVariable Long id,
-										  @RequestParam Gasto.Tipo tipo,
-										  @RequestParam(required = false) String descripcion,
-										  @RequestParam BigDecimal monto) {
+	public ResponseEntity<?> agregarGasto(@PathVariable Long id, @RequestBody GastoCreateRequest request) {
 		try {
-			Gasto g = gastoService.crear(id, tipo, descripcion, monto);
+			Gasto g = gastoService.crear(id, Gasto.Tipo.valueOf(request.getTipo()),
+										request.getFecha(), request.getMonto(), request.getNotas());
 			return ResponseEntity.status(HttpStatus.CREATED).body(mapGastoToDTO(g));
 		} catch (IllegalArgumentException e) {
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());

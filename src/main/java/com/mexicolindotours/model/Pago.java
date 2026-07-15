@@ -27,7 +27,10 @@ public class Pago {
 	@Column(nullable = false, precision = 10, scale = 2)
 	private BigDecimal monto;
 
-	@Column(length = 160)
+	@Column(length = 100)
+	private String metodo;
+
+	@Column(length = 255)
 	private String notas;
 
 	@Column(nullable = false, updatable = false)
@@ -57,6 +60,8 @@ public class Pago {
 	public void setFecha(LocalDate fecha) { this.fecha = fecha; }
 	public BigDecimal getMonto() { return monto; }
 	public void setMonto(BigDecimal monto) { this.monto = monto; }
+	public String getMetodo() { return metodo; }
+	public void setMetodo(String metodo) { this.metodo = metodo; }
 	public String getNotas() { return notas; }
 	public void setNotas(String notas) { this.notas = notas; }
 	public LocalDateTime getCreatedAt() { return createdAt; }
