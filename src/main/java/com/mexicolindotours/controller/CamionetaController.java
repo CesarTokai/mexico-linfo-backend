@@ -18,11 +18,9 @@ public class CamionetaController {
 	private CamionetaService camionetaService;
 
 	@PostMapping
-	public ResponseEntity<?> crear(@RequestParam String nombre,
-								   @RequestParam String modelo,
-								   @RequestParam Integer capacidad) {
+	public ResponseEntity<?> crear(@RequestBody CamionetaCreateRequest request) {
 		try {
-			Camioneta c = camionetaService.crear(nombre, modelo, capacidad);
+			Camioneta c = camionetaService.crear(request.getNombre(), request.getModelo(), request.getCapacidad());
 			return ResponseEntity.status(HttpStatus.CREATED).body(mapToDTO(c));
 		} catch (Exception e) {
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
@@ -43,14 +41,11 @@ public class CamionetaController {
 	}
 
 	@PutMapping("/{id}")
-	public ResponseEntity<?> actualizar(@PathVariable Long id,
-										@RequestParam(required = false) String nombre,
-										@RequestParam(required = false) String modelo,
-										@RequestParam(required = false) Integer capacidad,
-										@RequestParam(required = false) Camioneta.Estado estado,
-										@RequestParam(required = false) Integer intervaloMantenimiento) {
+	public ResponseEntity<?> actualizar(@PathVariable Long id, @RequestBody CamionetaUpdateRequest request) {
 		try {
-			Camioneta c = camionetaService.actualizar(id, nombre, modelo, capacidad, estado, intervaloMantenimiento);
+			Camioneta.Estado estado = request.getEstado() != null ? Camioneta.Estado.valueOf(request.getEstado()) : null;
+			Camioneta c = camionetaService.actualizar(id, request.getNombre(), request.getModelo(),
+													  request.getCapacidad(), estado, request.getKmMantenimiento());
 			return ResponseEntity.ok(mapToDTO(c));
 		} catch (IllegalArgumentException e) {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
