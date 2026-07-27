@@ -33,8 +33,8 @@ public class AvisosController {
 	public ResponseEntity<?> obtenerAvisos() {
 		Map<String, Object> avisos = new HashMap<>();
 
-		List<Map<String, Object>> mantenimientos = obtenerAvisosMantenimiento();
-		List<Map<String, Object>> tramites = obtenerAvisosTramites();
+		List<Map<String, Object>> mantenimientos = calcularAvisosMantenimiento();
+		List<Map<String, Object>> tramites = calcularAvisosTramites();
 
 		avisos.put("mantenimientos", mantenimientos);
 		avisos.put("tramites", tramites);
@@ -45,15 +45,15 @@ public class AvisosController {
 
 	@GetMapping("/mantenimientos")
 	public ResponseEntity<?> obtenerAvisosMantenimientos() {
-		return ResponseEntity.ok(obtenerAvisosMantenimiento());
+		return ResponseEntity.ok(calcularAvisosMantenimiento());
 	}
 
 	@GetMapping("/tramites")
 	public ResponseEntity<?> obtenerAvisosTramites() {
-		return ResponseEntity.ok(obtenerAvisosTramites());
+		return ResponseEntity.ok(calcularAvisosTramites());
 	}
 
-	private List<Map<String, Object>> obtenerAvisosMantenimiento() {
+	private List<Map<String, Object>> calcularAvisosMantenimiento() {
 		List<Map<String, Object>> avisos = new ArrayList<>();
 		List<Camioneta> camionetas = camionetaRepository.findAll();
 
@@ -86,7 +86,7 @@ public class AvisosController {
 		return avisos;
 	}
 
-	private List<Map<String, Object>> obtenerAvisosTramites() {
+	private List<Map<String, Object>> calcularAvisosTramites() {
 		List<Map<String, Object>> avisos = new ArrayList<>();
 		List<TramiteVehiculo> tramites = tramiteVehiculoRepository.findAll();
 

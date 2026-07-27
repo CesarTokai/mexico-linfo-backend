@@ -72,7 +72,7 @@ public class MantenimientoService {
 				.orElseThrow(() -> new IllegalArgumentException("Camioneta no encontrada"));
 
 		int kmActual = camioneta.getKmActual() != null ? camioneta.getKmActual() : 0;
-		int intervaloMantenimiento = camioneta.getKmMantenimiento() != null ? camioneta.getKmMantenimiento() : 10000;
+		int intervaloMantenimiento = camioneta.getIntervaloMantenimientoKm() != null ? camioneta.getIntervaloMantenimientoKm() : 10000;
 		int proximoKmMantenimiento = ((kmActual / intervaloMantenimiento) + 1) * intervaloMantenimiento;
 
 		int kmsFaltantes = proximoKmMantenimiento - kmActual;

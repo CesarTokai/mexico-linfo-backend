@@ -1,6 +1,8 @@
 package com.mexicolindotours.controller;
 
 import com.mexicolindotours.dto.CamionetaDTO;
+import com.mexicolindotours.dto.CamionetaCreateRequest;
+import com.mexicolindotours.dto.CamionetaUpdateRequest;
 import com.mexicolindotours.model.Camioneta;
 import com.mexicolindotours.service.CamionetaService;
 import org.springframework.beans.factory.annotation.Autowired;
