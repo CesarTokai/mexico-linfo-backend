@@ -10,6 +10,8 @@ import com.mexicolindotours.service.GastoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -17,6 +19,11 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/viajes")
 public class ViajeController {
+
+	private boolean esAdmin() {
+		return SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+				.anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+	}
 
 	@Autowired
 	private ViajeService viajeService;
@@ -76,7 +83,7 @@ public class ViajeController {
 		try {
 			Viaje v = viajeService.actualizarViaje(id, request.getConcepto(), request.getFechaInicio(),
 													request.getFechaFin(), request.getCostoTotal(),
-													request.getKmInicial(), request.getChoferId());
+													request.getKmInicial(), request.getChoferId(), esAdmin());
 			if (request.getNotas() != null) {
 				v.setNotas(request.getNotas());
 			}
@@ -99,13 +106,18 @@ public class ViajeController {
 	@PutMapping("/{id}/estado")
 	public ResponseEntity<?> cambiarEstado(@PathVariable Long id, @RequestBody ViajeCambiarEstadoRequest request) {
 		try {
-			Viaje v = viajeService.actualizarEstado(id, Viaje.Estado.valueOf(request.getEstado()));
+			Viaje.Estado nuevoEstado = Viaje.Estado.valueOf(request.getEstado());
+			if (nuevoEstado == Viaje.Estado.cancelado && !esAdmin()) {
+				return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Solo ADMIN puede cancelar viajes");
+			}
+			Viaje v = viajeService.actualizarEstado(id, nuevoEstado);
 			return ResponseEntity.ok(mapToDTO(v));
 		} catch (IllegalArgumentException e) {
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
 		}
 	}
 
+	@PreAuthorize("hasRole('ADMIN')")
 	@DeleteMapping("/{id}/cancelar")
 	public ResponseEntity<?> cancelar(@PathVariable Long id) {
 		try {

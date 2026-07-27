@@ -115,10 +115,10 @@ public class ViajeService {
 		return viajeGuardado;
 	}
 
-	public Viaje actualizarViaje(Long id, String concepto, LocalDate fechaInicio, LocalDate fechaFin, BigDecimal costoTotal, Integer kmInicial, Long choferId) {
+	public Viaje actualizarViaje(Long id, String concepto, LocalDate fechaInicio, LocalDate fechaFin, BigDecimal costoTotal, Integer kmInicial, Long choferId, boolean esAdmin) {
 		Viaje viaje = obtenerPorId(id);
 
-		if (viaje.getEstado() == Viaje.Estado.finalizado) {
+		if (viaje.getEstado() == Viaje.Estado.finalizado && !esAdmin) {
 			throw new IllegalArgumentException("No se puede editar un viaje finalizado");
 		}
 
