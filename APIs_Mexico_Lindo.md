@@ -1,4 +1,4 @@
-# APIs Mexico Lindo Tours — Especificación Completa
+# APIs México Lindo Tours — Referencia Completa
 
 ## AUTH
 
@@ -14,7 +14,7 @@
 ```json
 {
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "usuario": {P
+  "usuario": {
     "id": 1,
     "email": "usuario@example.com",
     "nombre": "Juan",
