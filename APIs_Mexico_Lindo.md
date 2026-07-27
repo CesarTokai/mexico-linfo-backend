@@ -1,1052 +1,438 @@
 # APIs México Lindo Tours — Referencia Completa
 
-## AUTH
+> Generada desde el código fuente (controllers/DTOs) — refleja el comportamiento real del backend.
 
-### POST /auth/login
-**Request:**
-```json
-{
-  "email": "usuario@example.com",
-  "password": "contraseña"
-}
+## Configuración base
+
+- **Base URL:** `http://localhost:8080` (SIN prefijo `/api` — no hay context-path configurado)
+- **CORS permitido:** `http://localhost:5173` y `http://localhost:3000`
+- **Auth:** JWT Bearer. Header `Authorization: Bearer <token>` en TODO excepto `POST /auth/login`.
+- **Token:** expira en 24 h (`jwt.expiration=86400000` ms).
+- **Fechas:** formato `YYYY-MM-DD` (LocalDate). Dinero: número decimal (BigDecimal).
+
+### Formato de errores — IMPORTANTE
+
+Los errores devuelven **texto plano**, NO JSON:
+
 ```
-**Response (200):**
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "usuario": {
-    "id": 1,
-    "email": "usuario@example.com",
-    "nombre": "Juan",
-    "rol": "ADMIN"
-  }
-}
+HTTP 400
+Body: "Camioneta no encontrada"
 ```
-**Error (401):**
-```json
-{
-  "error": "Credenciales inválidas"
-}
-```
+
+En frontend usar `res.text()` para errores, no `res.json()` (fallaría el parse).
+
+### Roles
+
+| Regla | Quién |
+|---|---|
+| Todo `/usuarios/**` (GET/POST/PUT/DELETE) | Solo **ADMIN** (403 si GESTOR) |
+| `POST /auth/crear-usuario` | Solo **ADMIN** |
+| `DELETE /viajes/{id}/cancelar` | Solo **ADMIN** |
+| `PUT /viajes/{id}/estado` con `"cancelado"` | Solo **ADMIN** (403 con mensaje) |
+| `PUT /viajes/{id}` sobre viaje `finalizado` | Solo **ADMIN** (GESTOR recibe 400) |
+| Todo lo demás | Cualquier autenticado (ADMIN o GESTOR) |
+
+### Enums (valores exactos)
+
+| Enum | Valores |
+|---|---|
+| Viaje.estado | `apartado`, `en_curso`, `finalizado`, `cancelado` |
+| Camioneta.estado | `activa`, `en_taller`, `baja` |
+| Pago.tipo | `apartado`, `liquidacion`, `abono` |
+| Gasto.tipo | `caseta`, `gasolina`, `chofer`, `otros` |
+| Mantenimiento.tipo | `mantenimiento`, `refaccion` |
+| Tramite.tipo | `tenencia`, `placas`, `seguro`, `verificacion`, `otro` |
+| Usuario.rol | `ADMIN`, `GESTOR` |
 
 ---
 
-## USUARIOS (CRUD)
+## AUTH
+
+### POST /auth/login  (público)
+```json
+// Request
+{ "correo": "admin@mlt.com", "password": "secreto123" }
+
+// Response 200
+{ "token": "eyJ...", "nombre": "Admin", "correo": "admin@mlt.com", "rol": "ADMIN" }
+```
+Error 401: texto `"Credenciales inválidas"`.
+
+### POST /auth/crear-usuario  (ADMIN)
+⚠️ Usa **query params**, no JSON body (endpoint legado; preferir `POST /usuarios`):
+```
+POST /auth/crear-usuario?nombre=Juan&correo=j@mlt.com&password=abc123&rol=GESTOR
+```
+Response 201: texto `"Usuario creado: Juan"`.
+
+---
+
+## USUARIOS  (todo ADMIN-only)
 
 ### GET /usuarios
-**Query Params:** ninguno
-**Response (200):**
 ```json
-{
-  "usuarios": [
-    {
-      "id": 1,
-      "email": "admin@example.com",
-      "nombre": "Admin User",
-      "rol": "ADMIN",
-      "activo": true,
-      "creado_en": "2026-01-15T10:30:00Z"
-    },
-    {
-      "id": 2,
-      "email": "gestor@example.com",
-      "nombre": "Gestor User",
-      "rol": "GESTOR",
-      "activo": true,
-      "creado_en": "2026-02-10T14:20:00Z"
-    }
-  ]
-}
+// Response 200 — array plano
+[ { "id": 1, "nombre": "Admin", "correo": "admin@mlt.com", "rol": "ADMIN", "activo": true } ]
 ```
+
+### GET /usuarios/{id}
+Response 200: objeto UsuarioDTO (igual que arriba). 404: texto.
 
 ### POST /usuarios
-**Request:**
 ```json
-{
-  "email": "nuevo@example.com",
-  "nombre": "Nuevo Usuario",
-  "password": "contraseña123",
-  "rol": "GESTOR"
-}
+// Request  (rol opcional, default GESTOR)
+{ "nombre": "Juan", "email": "j@mlt.com", "password": "abc123", "rol": "GESTOR" }
 ```
-**Response (201):**
-```json
-{
-  "id": 3,
-  "email": "nuevo@example.com",
-  "nombre": "Nuevo Usuario",
-  "rol": "GESTOR",
-  "activo": true,
-  "creado_en": "2026-07-15T12:00:00Z"
-}
-```
+⚠️ El campo del request se llama `email` (el response lo devuelve como `correo`).
+Response 201: UsuarioDTO.
 
 ### PUT /usuarios/{id}
-**Request:**
 ```json
-{
-  "nombre": "Nuevo Nombre",
-  "rol": "ADMIN"
-}
+{ "nombre": "Juan Nuevo", "rol": "ADMIN" }
 ```
-**Response (200):**
-```json
-{
-  "id": 3,
-  "email": "nuevo@example.com",
-  "nombre": "Nuevo Nombre",
-  "rol": "ADMIN",
-  "activo": true
-}
-```
+Campos opcionales (null = no cambia). Response 200: UsuarioDTO.
 
 ### DELETE /usuarios/{id}
-**Response (200):**
-```json
-{
-  "mensaje": "Usuario desactivado"
-}
-```
+Baja lógica. Response 200: texto `"Usuario desactivado"`.
 
 ---
 
 ## CAMIONETAS
 
 ### GET /camionetas
-**Response (200):**
 ```json
-{
-  "camionetas": [
-    {
-      "id": 1,
-      "placa": "MLT-001",
-      "modelo": "Urvan NV350",
-      "anio": 2023,
-      "km_actual": 45230,
-      "km_mantenimiento": 10000,
-      "proximo_mantenimiento_km": 50230,
-      "estado": "disponible",
-      "color": "blanco",
-      "creada_en": "2026-01-10T08:00:00Z"
-    }
-  ]
-}
+[ { "id": 1, "nombre": "Urvan 1", "modelo": "NV350 2022", "capacidad": 14,
+    "kmActual": 45200, "intervaloMantenimientoKm": 10000, "estado": "activa" } ]
 ```
+
+### GET /camionetas/{id} → CamionetaDTO | 404 texto
 
 ### POST /camionetas
-**Request:**
 ```json
-{
-  "placa": "MLT-002",
-  "modelo": "Urvan NV350",
-  "anio": 2024,
-  "km_actual": 5000,
-  "km_mantenimiento": 10000,
-  "color": "blanco"
-}
+{ "nombre": "Urvan 3", "modelo": "NV350 2023", "capacidad": 14 }
 ```
-**Response (201):**
-```json
-{
-  "id": 2,
-  "placa": "MLT-002",
-  "modelo": "Urvan NV350",
-  "anio": 2024,
-  "km_actual": 5000,
-  "km_mantenimiento": 10000,
-  "estado": "disponible"
-}
-```
+Solo se usan `nombre`, `modelo`, `capacidad` (otros campos del DTO se ignoran).
+Response 201: CamionetaDTO.
 
 ### PUT /camionetas/{id}
-**Request:**
 ```json
-{
-  "km_actual": 50000,
-  "estado": "en_taller",
-  "km_mantenimiento": 15000
-}
+{ "nombre": "Urvan 3", "modelo": "NV350 2023", "capacidad": 14,
+  "estado": "en_taller", "kmMantenimiento": 10000 }
 ```
-**Response (200):**
-```json
-{
-  "id": 1,
-  "placa": "MLT-001",
-  "km_actual": 50000,
-  "estado": "en_taller",
-  "km_mantenimiento": 15000
-}
-```
+Todos opcionales. `estado`: `activa` | `en_taller` | `baja`. `kmMantenimiento` = intervalo de mantenimiento.
+Response 200: CamionetaDTO.
 
 ### DELETE /camionetas/{id}
-**Response (200):**
-```json
-{
-  "mensaje": "Camioneta desactivada"
-}
-```
+Baja lógica. Response 200: texto `"Camioneta desactivada"`.
 
 ### GET /camionetas/{id}/historial
-**Response (200):**
 ```json
-{
-  "camioneta_id": 1,
-  "placa": "MLT-001",
-  "historial": [
-    {
-      "viaje_id": 10,
-      "fecha_inicio": "2026-07-10",
-      "fecha_fin": "2026-07-12",
-      "cliente": "Cliente A",
-      "km_inicial": 45000,
-      "km_final": 45230,
-      "ingresos": 2500.00,
-      "egresos": 350.00,
-      "neto": 2150.00
-    }
-  ]
-}
+{ "camionetaId": 1, "camionetaNombre": "Urvan 1", "totalViajes": 32,
+  "kmActual": 45200, "costosMantenimiento": 15400.00, "costosTramites": 8900.00 }
 ```
 
 ---
 
 ## CHOFERES
 
-### GET /choferes
-**Response (200):**
+### GET /choferes — solo activos
+### GET /choferes/todos — incluye inactivos
 ```json
-{
-  "choferes": [
-    {
-      "id": 1,
-      "nombre": "Juan García",
-      "telefono": "+52 555-1234",
-      "licencia_numero": "LIC123456",
-      "licencia_vencimiento": "2027-06-15",
-      "estado": "activo",
-      "creado_en": "2026-01-01T08:00:00Z"
-    }
-  ]
-}
+[ { "id": 1, "nombre": "Pedro", "telefono": "7771234567",
+    "licenciaVencimiento": "2026-12-01", "activo": true } ]
 ```
+
+### GET /choferes/{id} → ChoferDTO | 404 texto
 
 ### POST /choferes
-**Request:**
 ```json
-{
-  "nombre": "Pedro López",
-  "telefono": "+52 555-5678",
-  "licencia_numero": "LIC789012",
-  "licencia_vencimiento": "2027-12-31"
-}
+{ "nombre": "Pedro", "telefono": "7771234567" }
 ```
-**Response (201):**
-```json
-{
-  "id": 2,
-  "nombre": "Pedro López",
-  "telefono": "+52 555-5678",
-  "licencia_numero": "LIC789012",
-  "licencia_vencimiento": "2027-12-31",
-  "estado": "activo"
-}
-```
+Solo se usan `nombre` y `telefono`. Response 201: ChoferDTO.
 
 ### PUT /choferes/{id}
-**Request:**
 ```json
-{
-  "nombre": "Pedro López Actualizado",
-  "licencia_vencimiento": "2028-12-31"
-}
+{ "nombre": "Pedro", "telefono": "7771234567", "licenciaVencimiento": "2027-06-15" }
 ```
-**Response (200):**
-```json
-{
-  "id": 2,
-  "nombre": "Pedro López Actualizado",
-  "licencia_vencimiento": "2028-12-31"
-}
-```
+Todos opcionales. Response 200: ChoferDTO.
 
 ### DELETE /choferes/{id}
-**Response (200):**
-```json
-{
-  "mensaje": "Chofer desactivado"
-}
-```
+Baja lógica. Response 200: texto `"Chofer desactivado"`.
 
 ### GET /choferes/{id}/historial
-**Response (200):**
 ```json
-{
-  "chofer_id": 1,
-  "nombre": "Juan García",
-  "total_viajes": 45,
-  "km_totales": 12500,
-  "historial": [
-    {
-      "viaje_id": 10,
-      "fecha": "2026-07-10",
-      "camioneta": "MLT-001",
-      "cliente": "Cliente A",
-      "km_recorridos": 230,
-      "pago": 500.00
-    }
-  ]
-}
+{ "choferId": 1, "choferNombre": "Pedro", "totalViajes": 18,
+  "kmManejados": 12400, "totalPagado": 27000.00 }
 ```
 
-### GET /choferes/{id}/disponibilidad
-**Response (200):**
+### Disponibilidad de chofer
+
+**GET /choferes/{id}/disponibilidad**
 ```json
-{
-  "chofer_id": 1,
-  "disponibilidades": [
-    {
-      "id": 1,
-      "fecha": "2026-07-20",
-      "disponible": true,
-      "notas": "Disponible"
-    }
-  ]
-}
+[ { "id": 5, "choferId": 1, "fecha": "2026-08-01", "disponible": true, "notas": null } ]
 ```
 
-### POST /choferes/{id}/disponibilidad
-**Request:**
+**POST /choferes/{id}/disponibilidad** (crea o actualiza si ya existe esa fecha)
 ```json
-{
-  "fecha": "2026-07-20",
-  "disponible": true,
-  "notas": "Disponible todo el día"
-}
+{ "fecha": "2026-08-01", "disponible": false, "notas": "Viaje personal" }
 ```
-**Response (201):**
-```json
-{
-  "id": 1,
-  "chofer_id": 1,
-  "fecha": "2026-07-20",
-  "disponible": true,
-  "notas": "Disponible todo el día"
-}
-```
+Response 201: DisponibilidadChoferDTO.
+
+**DELETE /choferes/disponibilidad/{disponibilidadId}**
+Response 200: texto `"Disponibilidad eliminada"`.
 
 ---
 
 ## CLIENTES
 
 ### GET /clientes
-**Response (200):**
 ```json
-{
-  "clientes": [
-    {
-      "id": 1,
-      "nombre": "Cliente A",
-      "telefono": "+52 555-1111",
-      "email": "cliente@example.com",
-      "total_viajes": 15,
-      "estado": "activo",
-      "creado_en": "2026-01-05T10:00:00Z"
-    }
-  ]
-}
+[ { "id": 1, "nombre": "María López", "telefono": "5551112233", "notas": null } ]
 ```
+
+### GET /clientes/{id} → ClienteDTO | 404 texto
 
 ### POST /clientes
-**Request:**
 ```json
-{
-  "nombre": "Cliente Nuevo",
-  "telefono": "+52 555-2222",
-  "email": "nuevo@example.com"
-}
+{ "nombre": "María López", "telefono": "5551112233", "email": "maria@mail.com" }
 ```
-**Response (201):**
-```json
-{
-  "id": 2,
-  "nombre": "Cliente Nuevo",
-  "telefono": "+52 555-2222",
-  "email": "nuevo@example.com",
-  "total_viajes": 0,
-  "estado": "activo"
-}
-```
+Response 201: ClienteDTO.
 
 ### PUT /clientes/{id}
-**Request:**
 ```json
-{
-  "nombre": "Cliente Nuevo Actualizado",
-  "email": "actualizado@example.com"
-}
+{ "nombre": "María L.", "telefono": "5551112233", "email": "maria@mail.com" }
 ```
-**Response (200):**
-```json
-{
-  "id": 2,
-  "nombre": "Cliente Nuevo Actualizado",
-  "email": "actualizado@example.com"
-}
-```
-
-### DELETE /clientes/{id}
-**Response (200):**
-```json
-{
-  "mensaje": "Cliente desactivado"
-}
-```
+Response 200: ClienteDTO. (No hay DELETE de clientes.)
 
 ### GET /clientes/{id}/historial
-**Response (200):**
 ```json
-{
-  "cliente_id": 1,
-  "nombre": "Cliente A",
-  "total_viajes": 15,
-  "ingresos_totales": 37500.00,
-  "historial": [
-    {
-      "viaje_id": 10,
-      "fecha_inicio": "2026-07-10",
-      "fecha_fin": "2026-07-12",
-      "camioneta": "MLT-001",
-      "costo_total": 2500.00,
-      "pagado": 2500.00,
-      "estado": "finalizado"
-    }
-  ]
-}
+{ "clienteId": 1, "clienteNombre": "María López", "totalViajes": 5,
+  "totalPagado": 42000.00, "pendiente": 3000.00 }
 ```
 
 ---
 
-## VIAJES (CRUD Complejo)
+## VIAJES
 
-### GET /viajes
-**Query Params:** `?estado=en_curso&mes=7&anio=2026`
-**Response (200):**
+### ViajeDTO (respuesta de todos los endpoints de viaje)
 ```json
-{
-  "viajes": [
-    {
-      "id": 10,
-      "cliente_id": 1,
-      "cliente_nombre": "Cliente A",
-      "camioneta_id": 1,
-      "camioneta_placa": "MLT-001",
-      "chofer_id": 1,
-      "chofer_nombre": "Juan García",
-      "fecha_inicio": "2026-07-10",
-      "fecha_fin": "2026-07-12",
-      "km_inicial": 45000,
-      "km_final": 45230,
-      "costo_total": 2500.00,
-      "estado": "finalizado",
-      "notas": "Cliente satisfecho",
-      "creado_en": "2026-07-09T14:30:00Z"
-    }
-  ]
-}
+{ "id": 10, "clienteId": 1, "clienteNombre": "María López",
+  "camionetaId": 1, "camionetaNombre": "Urvan 1",
+  "choferId": 2, "choferNombre": "Pedro",
+  "concepto": "Viaje a Acapulco", "fechaInicio": "2026-08-10", "fechaFin": "2026-08-12",
+  "kmInicial": 45200, "kmFinal": null, "costoTotal": 12000.00,
+  "estado": "apartado", "notas": null, "pagos": null, "gastos": null }
 ```
+`choferId`/`choferNombre` son `null` si no hay chofer asignado. `pagos`/`gastos` siempre `null` aquí — usar los endpoints anidados.
+
+### GET /viajes — todos (sin query params)
+### GET /viajes/{id} → ViajeDTO | 404
+### GET /viajes/camioneta/{camionetaId} — viajes de una unidad
+### GET /viajes/cliente/{clienteId} — viajes de un cliente
 
 ### POST /viajes
-**Request:**
 ```json
-{
-  "cliente_id": 1,
-  "camioneta_id": 1,
-  "chofer_id": 1,
-  "fecha_inicio": "2026-07-20",
-  "fecha_fin": "2026-07-22",
-  "km_inicial": 50230,
-  "costo_total": 3000.00,
-  "notas": "Renta con conductor"
-}
+{ "clienteId": 1, "camionetaId": 1, "choferId": null,
+  "concepto": "Viaje a Acapulco", "fechaInicio": "2026-08-10",
+  "fechaFin": "2026-08-12", "costoTotal": 12000.00, "notas": "opcional" }
 ```
-**Response (201):**
-```json
-{
-  "id": 11,
-  "cliente_id": 1,
-  "camioneta_id": 1,
-  "chofer_id": 1,
-  "fecha_inicio": "2026-07-20",
-  "fecha_fin": "2026-07-22",
-  "km_inicial": 50230,
-  "costo_total": 3000.00,
-  "estado": "apartado",
-  "pagos": [],
-  "gastos": [],
-  "creado_en": "2026-07-15T12:00:00Z"
-}
-```
+`choferId` opcional (reasignable después). Valida anti-doble-reserva (400 si hay traslape con viaje no cancelado de la misma camioneta; se permite que un viaje termine el día que otro inicia). Camioneta `en_taller` o `baja` → 400.
+Response 201: ViajeDTO (estado `apartado`).
 
 ### PUT /viajes/{id}
-**Request:**
 ```json
-{
-  "chofer_id": 2,
-  "fecha_inicio": "2026-07-21",
-  "fecha_fin": "2026-07-23",
-  "costo_total": 3200.00
-}
+{ "concepto": "...", "fechaInicio": "2026-08-11", "fechaFin": "2026-08-13",
+  "costoTotal": 13000.00, "kmInicial": 45200, "choferId": 3, "notas": "..." }
 ```
-**Response (200):**
-```json
-{
-  "id": 11,
-  "cliente_id": 1,
-  "chofer_id": 2,
-  "fecha_inicio": "2026-07-21",
-  "fecha_fin": "2026-07-23",
-  "costo_total": 3200.00,
-  "estado": "apartado"
-}
-```
+Todos opcionales. Revalida anti-doble-reserva si cambian fechas.
+⚠️ Viaje `finalizado`: solo ADMIN puede editarlo (GESTOR → 400 texto).
 
-### DELETE /viajes/{id}
-**Response (200):**
+### PUT /viajes/{id}/finalizar
 ```json
-{
-  "mensaje": "Viaje cancelado"
-}
+{ "kmFinal": 45900 }
 ```
+Valida `kmFinal > kmInicial`. Actualiza `camioneta.kmActual`. Response 200: ViajeDTO.
 
 ### PUT /viajes/{id}/estado
-**Request:**
 ```json
-{
-  "estado": "en_curso"
-}
+{ "estado": "en_curso" }
 ```
-**Response (200):**
+Valores: `apartado` | `en_curso` | `finalizado` | `cancelado`.
+⚠️ `cancelado` requiere ADMIN → GESTOR recibe 403 texto `"Solo ADMIN puede cancelar viajes"`.
+
+### DELETE /viajes/{id}/cancelar  (ADMIN)
+Marca `cancelado` (no borra; pagos recibidos cuentan como ingreso, adelanto no se devuelve).
+Response 200: texto `"Viaje cancelado"`.
+
+### Pagos del viaje
+
+**GET /viajes/{id}/pagos**
 ```json
-{
-  "id": 11,
-  "estado": "en_curso",
-  "mensaje": "Viaje iniciado"
-}
+[ { "id": 1, "viajeId": 10, "tipo": "apartado", "fecha": "2026-07-20",
+    "monto": 4000.00, "notas": null } ]
 ```
 
-**Estados válidos:** `apartado` → `en_curso` → `finalizado` | `cancelado`
-
-### GET /viajes/{id}/pagos
-**Response (200):**
+**POST /viajes/{id}/pagos**
 ```json
-{
-  "viaje_id": 10,
-  "pagos": [
-    {
-      "id": 1,
-      "tipo": "apartado",
-      "monto": 1000.00,
-      "fecha_pago": "2026-07-09",
-      "metodo": "transferencia",
-      "notas": "Primer adelanto"
-    },
-    {
-      "id": 2,
-      "tipo": "liquidacion",
-      "monto": 1500.00,
-      "fecha_pago": "2026-07-12",
-      "metodo": "efectivo",
-      "notas": "Pago final"
-    }
-  ],
-  "pagado_total": 2500.00,
-  "pendiente": 0.00
-}
+{ "tipo": "apartado", "fechaPago": "2026-07-20", "monto": 4000.00,
+  "metodo": "efectivo", "notas": "opcional" }
+```
+`tipo`: `apartado` | `liquidacion` | `abono`. Response 201: PagoDTO.
+
+**DELETE /viajes/pagos/{pagoId}** → 200 texto `"Pago eliminado"`.
+(No existe PUT de pagos — pa corregir: eliminar y volver a crear.)
+
+### Gastos del viaje
+
+**GET /viajes/{id}/gastos**
+```json
+[ { "id": 1, "viajeId": 10, "tipo": "gasolina", "descripcion": null, "monto": 1500.00 } ]
 ```
 
-### POST /viajes/{id}/pagos
-**Request:**
+**POST /viajes/{id}/gastos**
 ```json
-{
-  "tipo": "abono",
-  "monto": 500.00,
-  "fecha_pago": "2026-07-15",
-  "metodo": "efectivo",
-  "notas": "Abono extra"
-}
+{ "tipo": "gasolina", "fecha": "2026-08-10", "monto": 1500.00, "notas": "opcional" }
 ```
-**Response (201):**
-```json
-{
-  "id": 3,
-  "viaje_id": 10,
-  "tipo": "abono",
-  "monto": 500.00,
-  "fecha_pago": "2026-07-15",
-  "metodo": "efectivo"
-}
-```
+`tipo`: `caseta` | `gasolina` | `chofer` | `otros`. Response 201: GastoDTO.
 
-### PUT /viajes/{id}/pagos/{pago_id}
-**Request:**
-```json
-{
-  "monto": 600.00,
-  "metodo": "transferencia"
-}
-```
-**Response (200):**
-```json
-{
-  "id": 3,
-  "viaje_id": 10,
-  "monto": 600.00,
-  "metodo": "transferencia"
-}
-```
-
-### GET /viajes/{id}/gastos
-**Response (200):**
-```json
-{
-  "viaje_id": 10,
-  "gastos": [
-    {
-      "id": 1,
-      "tipo": "chofer",
-      "monto": 300.00,
-      "fecha": "2026-07-12",
-      "notas": "Pago chofer Juan García"
-    },
-    {
-      "id": 2,
-      "tipo": "gasolina",
-      "monto": 50.00,
-      "fecha": "2026-07-12",
-      "notas": "Combustible"
-    }
-  ],
-  "total_egresos": 350.00
-}
-```
-
-### POST /viajes/{id}/gastos
-**Request:**
-```json
-{
-  "tipo": "caseta",
-  "monto": 100.00,
-  "fecha": "2026-07-10",
-  "notas": "Caseta Mexico City"
-}
-```
-**Response (201):**
-```json
-{
-  "id": 3,
-  "viaje_id": 10,
-  "tipo": "caseta",
-  "monto": 100.00,
-  "fecha": "2026-07-10"
-}
-```
-
-### PUT /viajes/{id}/gastos/{gasto_id}
-**Request:**
-```json
-{
-  "monto": 120.00
-}
-```
-**Response (200):**
-```json
-{
-  "id": 3,
-  "viaje_id": 10,
-  "monto": 120.00
-}
-```
+**DELETE /viajes/gastos/{gastoId}** → 200 texto `"Gasto eliminado"`.
+(No existe PUT de gastos.)
 
 ---
 
 ## MANTENIMIENTOS
 
-### GET /mantenimientos
-**Response (200):**
+### GET /mantenimientos | GET /mantenimientos/{id} | GET /mantenimientos/camioneta/{camionetaId}
 ```json
-{
-  "mantenimientos": [
-    {
-      "id": 1,
-      "camioneta_id": 1,
-      "camioneta_placa": "MLT-001",
-      "fecha": "2026-07-10",
-      "km_realizado": 50000,
-      "tipo": "cambio_aceite",
-      "costo": 500.00,
-      "notas": "Mantenimiento preventivo",
-      "prox_km": 60000
-    }
-  ]
-}
+[ { "id": 1, "camionetaId": 1, "camionetaNombre": "Urvan 1", "fecha": "2026-07-01",
+    "kmAlMomento": 40000, "tipo": "mantenimiento", "descripcion": "Cambio de aceite",
+    "costo": 2500.00 } ]
 ```
 
 ### POST /mantenimientos
-**Request:**
 ```json
-{
-  "camioneta_id": 1,
-  "fecha": "2026-07-15",
-  "km_realizado": 50230,
-  "tipo": "revision_general",
-  "costo": 1200.00,
-  "notas": "Revisión general completa"
-}
+{ "camionetaId": 1, "fecha": "2026-07-01", "tipo": "mantenimiento",
+  "costo": 2500.00, "descripcion": "Cambio de aceite" }
 ```
-**Response (201):**
-```json
-{
-  "id": 2,
-  "camioneta_id": 1,
-  "fecha": "2026-07-15",
-  "km_realizado": 50230,
-  "tipo": "revision_general",
-  "costo": 1200.00,
-  "prox_km": 60230
-}
-```
+`tipo`: `mantenimiento` | `refaccion`. `kmAlMomento` se toma automático del km actual de la unidad. Registrar mantenimiento resetea el aviso por km.
+Response 201: MantenimientoDTO.
 
 ### PUT /mantenimientos/{id}
-**Request:**
 ```json
-{
-  "costo": 1300.00,
-  "notas": "Costo revisado"
-}
+{ "fecha": "2026-07-02", "costo": 2600.00, "descripcion": "..." }
 ```
-**Response (200):**
-```json
-{
-  "id": 2,
-  "camioneta_id": 1,
-  "costo": 1300.00
-}
-```
+Response 200: MantenimientoDTO.
+
+### DELETE /mantenimientos/{id} → 200 texto.
 
 ---
 
 ## TRÁMITES
 
-### GET /tramites
-**Response (200):**
+### GET /tramites | GET /tramites/{id} | GET /tramites/camioneta/{camionetaId}
 ```json
-{
-  "tramites": [
-    {
-      "id": 1,
-      "camioneta_id": 1,
-      "camioneta_placa": "MLT-001",
-      "tipo": "tenencia",
-      "fecha_vencimiento": "2027-06-15",
-      "dias_para_vencer": 336,
-      "estado": "vigente",
-      "costo": 800.00,
-      "notas": "Tenencia 2027"
-    }
-  ]
-}
+[ { "id": 1, "camionetaId": 1, "camionetaNombre": "Urvan 1", "tipo": "seguro",
+    "fechaPago": "2026-01-15", "monto": 18000.00,
+    "fechaVencimiento": "2027-01-15", "notas": null } ]
 ```
 
 ### POST /tramites
-**Request:**
 ```json
-{
-  "camioneta_id": 1,
-  "tipo": "seguro",
-  "fecha_vencimiento": "2027-07-15",
-  "costo": 3500.00,
-  "notas": "Seguro de responsabilidad civil"
-}
+{ "camionetaId": 1, "tipo": "seguro", "fechaPago": "2026-01-15",
+  "monto": 18000.00, "fechaVencimiento": "2027-01-15", "notas": "opcional" }
 ```
-**Response (201):**
-```json
-{
-  "id": 2,
-  "camioneta_id": 1,
-  "tipo": "seguro",
-  "fecha_vencimiento": "2027-07-15",
-  "costo": 3500.00
-}
-```
+`tipo`: `tenencia` | `placas` | `seguro` | `verificacion` | `otro`. Response 201.
 
 ### PUT /tramites/{id}
-**Request:**
 ```json
-{
-  "fecha_vencimiento": "2028-07-15",
-  "costo": 3600.00
-}
+{ "fechaVencimiento": "2027-01-15", "monto": 18500.00, "notas": "renovado" }
 ```
-**Response (200):**
-```json
-{
-  "id": 2,
-  "camioneta_id": 1,
-  "fecha_vencimiento": "2028-07-15",
-  "costo": 3600.00
-}
-```
+Response 200: TramiteVehiculoDTO.
+
+### DELETE /tramites/{id} → 200 texto.
 
 ---
 
 ## GASTOS GENERALES
 
-### GET /gastos-generales
-**Query Params:** `?mes=7&anio=2026`
-**Response (200):**
+### GET /gastos-generales | GET /gastos-generales/{id}
+### GET /gastos-generales/mes?mes=7&anio=2026
+### GET /gastos-generales/anio?anio=2026
 ```json
-{
-  "gastos": [
-    {
-      "id": 1,
-      "categoria": "oficina",
-      "descripcion": "Renta oficina",
-      "monto": 5000.00,
-      "fecha": "2026-07-01",
-      "creado_en": "2026-06-25T08:00:00Z"
-    }
-  ],
-  "total_mes": 5000.00
-}
+[ { "id": 1, "fecha": "2026-07-05", "descripcion": "Papelería", "monto": 350.00 } ]
 ```
 
 ### POST /gastos-generales
-**Request:**
 ```json
-{
-  "categoria": "seguros",
-  "descripcion": "Seguro responsabilidad civil empresa",
-  "monto": 2000.00,
-  "fecha": "2026-07-15"
-}
-```
-**Response (201):**
-```json
-{
-  "id": 2,
-  "categoria": "seguros",
-  "descripcion": "Seguro responsabilidad civil empresa",
-  "monto": 2000.00,
-  "fecha": "2026-07-15"
-}
+{ "fecha": "2026-07-05", "descripcion": "Papelería", "monto": 350.00 }
 ```
 
-### PUT /gastos-generales/{id}
-**Request:**
-```json
-{
-  "monto": 2100.00,
-  "descripcion": "Seguro actualizado"
-}
-```
-**Response (200):**
-```json
-{
-  "id": 2,
-  "monto": 2100.00,
-  "descripcion": "Seguro actualizado"
-}
-```
+### PUT /gastos-generales/{id} — mismo shape, campos opcionales
+### DELETE /gastos-generales/{id} → 200 texto.
 
 ---
 
 ## CALENDARIO
 
-### GET /calendario
-**Query Params:** `?desde=2026-07-01&hasta=2026-07-31`
-**Response (200):**
+### GET /calendario?desde=2026-08-01&hasta=2026-08-31
 ```json
-{
-  "ocupacion": [
-    {
-      "camioneta_id": 1,
-      "placa": "MLT-001",
-      "estado": "disponible",
-      "viajes": [
-        {
-          "viaje_id": 10,
-          "cliente": "Cliente A",
-          "fecha_inicio": "2026-07-10",
-          "fecha_fin": "2026-07-12",
-          "estado": "finalizado"
-        },
-        {
-          "viaje_id": 11,
-          "cliente": "Cliente B",
-          "fecha_inicio": "2026-07-20",
-          "fecha_fin": "2026-07-23",
-          "estado": "apartado"
-        }
-      ]
-    },
-    {
-      "camioneta_id": 2,
-      "placa": "MLT-002",
-      "estado": "en_taller",
-      "mantenimiento": {
-        "fecha": "2026-07-15",
-        "tipo": "revision_general"
-      }
-    }
-  ]
-}
+[ { "camionetaId": 1, "camionetaNombre": "Urvan 1", "estado": "activa",
+    "ocupaciones": [
+      { "viajeId": 10, "fechaInicio": "2026-08-10", "fechaFin": "2026-08-12",
+        "clienteId": 1, "clienteNombre": "María López",
+        "concepto": "Viaje a Acapulco", "estado": "apartado" } ] } ]
 ```
+Incluye camionetas `en_taller` (con su estado, pa pintarlas bloqueadas).
 
 ---
 
-## TOTALES (Contabilidad)
+## TOTALES
 
-### GET /totales
-**Query Params:** `?mes=7&anio=2026` (opcional, sin parámetros = acumulado)
-**Response (200):**
+### GET /totales — acumulado
+### GET /totales?anio=2026 — por año
+### GET /totales?mes=7&anio=2026 — por mes
 ```json
-{
-  "periodo": "Julio 2026",
-  "ingresos": {
-    "total_viajes": 25000.00,
-    "descripcion": "Suma de costo_total de viajes completados"
-  },
-  "egresos": {
-    "gastos_viajes": 3500.00,
-    "gastos_camionetas": 2000.00,
-    "gastos_generales": 5000.00,
-    "total": 10500.00
-  },
-  "neto": 14500.00,
-  "detalle_camionetas": [
-    {
-      "camioneta_id": 1,
-      "placa": "MLT-001",
-      "ingresos": 15000.00,
-      "egresos": 5000.00,
-      "neto": 10000.00
-    }
-  ]
-}
+{ "mes": 7, "anio": 2026, "ingresosTotal": 120000.00,
+  "egresosViajes": 30000.00, "egresosCamionetas": 18000.00, "egresosGenerales": 4000.00,
+  "egresosTotal": 52000.00, "neto": 68000.00, "pendientePorCobrar": 9000.00 }
 ```
+`mes`/`anio` vienen `null` en modos año/acumulado según aplique. Las 3 cuentas de gasto van separadas: viajes / camionetas (mantenimiento+trámites) / generales.
 
 ---
 
 ## AVISOS
 
 ### GET /avisos
-**Response (200):**
 ```json
 {
-  "avisos": {
-    "mantenimientos_proximamente": [
-      {
-        "camioneta_id": 1,
-        "placa": "MLT-001",
-        "km_actual": 50000,
-        "km_proximo": 60000,
-        "km_faltantes": 10000,
-        "alertas": [
-          {
-            "nivel": "alerta",
-            "mensaje": "Faltando 500 km para mantenimiento",
-            "km_alerta": 59500
-          }
-        ]
-      }
-    ],
-    "tramites_por_vencer": [
-      {
-        "tramite_id": 1,
-        "camioneta_placa": "MLT-001",
-        "tipo": "tenencia",
-        "vencimiento": "2027-06-15",
-        "dias_restantes": 336,
-        "alertas": [
-          {
-            "nivel": "info",
-            "mensaje": "Vence en 30 días",
-            "dias": 30
-          }
-        ]
-      }
-    ],
-    "licencias_chofer_por_vencer": [
-      {
-        "chofer_id": 1,
-        "nombre": "Juan García",
-        "licencia_vencimiento": "2027-06-15",
-        "dias_restantes": 336,
-        "alertas": []
-      }
-    ]
-  }
+  "mantenimientos": [
+    { "camionetaId": 1, "camionetaNombre": "Urvan 1", "kmActual": 49600,
+      "kmFaltantes": 400, "nivel": "400km", "tipo": "mantenimiento", "prioridad": 2 } ],
+  "tramites": [
+    { "tramiteId": 1, "camionetaId": 1, "camionetaNombre": "Urvan 1", "tipo": "seguro",
+      "fechaVencimiento": "2026-08-10", "diasFaltantes": 14, "nivel": "15dias",
+      "tipoAviso": "vencimiento", "prioridad": 2 } ],
+  "total": 2
 }
 ```
+Avisos por km: faltando 500/400/300 y persiste si se pasó. Vencimientos: 30/15/10/5 días y persiste vencido. `prioridad` menor = más urgente.
+
+### GET /avisos/mantenimientos — solo array mantenimientos
+### GET /avisos/tramites — solo array trámites
 
 ---
 
-## DASHBOARD (Ganancia por Camioneta)
+## DASHBOARD
 
-### GET /dashboard
-**Query Params:** `?mes=7&anio=2026` (opcional, sin parámetros = acumulado)
-**Response (200):**
+### GET /dashboard/mes?mes=7&anio=2026
+### GET /dashboard/anio?anio=2026
+### GET /dashboard/acumulado
 ```json
-{
-  "periodo": "Julio 2026",
-  "resumen_general": {
-    "ingresos_total": 25000.00,
-    "egresos_total": 10500.00,
-    "neto_total": 14500.00
-  },
-  "ganancia_por_camioneta": [
-    {
-      "camioneta_id": 1,
-      "placa": "MLT-001",
-      "ingresos": 15000.00,
-      "egresos": {
-        "chofer": 2000.00,
-        "gasolina": 1500.00,
-        "casetas": 300.00,
-        "mantenimiento": 500.00,
-        "otros": 200.00,
-        "total": 4500.00
-      },
-      "neto": 10500.00,
-      "porcentaje_util": 70.0,
-      "viajes_completados": 6
-    },
-    {
-      "camioneta_id": 2,
-      "placa": "MLT-002",
-      "ingresos": 10000.00,
-      "egresos": 4000.00,
-      "neto": 6000.00,
-      "porcentaje_util": 40.0,
-      "viajes_completados": 3
-    }
-  ]
-}
+{ "periodo": "2026-07", "ingresosTotal": 120000.00, "egresosTotal": 52000.00,
+  "netoTotal": 68000.00,
+  "camionetas": [
+    { "camionetaId": 1, "camionetaNombre": "Urvan 1", "ingresos": 70000.00,
+      "egresos": 30000.00, "neto": 40000.00, "viajesCompletados": 6,
+      "porcentajeUtilizacion": 45.16 } ] }
 ```
-
----
-
-## NOTAS TÉCNICAS
-
-- **Dinero:** siempre `DECIMAL` (BigDecimal en Java)
-- **Fechas:** ISO 8601 (`YYYY-MM-DD`, timestamps con Z)
-- **Autenticación:** token JWT en header `Authorization: Bearer <token>`
-- **Roles:** ADMIN (todo), GESTOR (operación sin usuarios/eliminar viajes finalizados)
-- **Ciclos de vida:**
-  - Viaje: `apartado` → `en_curso` → `finalizado` o `cancelado`
-  - Camioneta: `disponible` o `en_taller`
-  - Datos: baja lógica (nunca DELETE físico)
-- **Validaciones:**
-  - Anti-doble-reserva: no traslapes fecha/camioneta (excepción: mismo día fin-inicio)
-  - KM: `km_final > km_inicial` y `km_inicial >= camioneta.km_actual`
-  - Trámites/Licencias: avisos 30/15/10/5 días antes; persisten si vencen
+`porcentajeUtilizacion` solo viene en el modo `/mes`.

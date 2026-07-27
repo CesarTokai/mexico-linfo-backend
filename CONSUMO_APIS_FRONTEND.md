@@ -1,11 +1,18 @@
 # Consumo de APIs desde Frontend — Vue 3 + JavaScript
 
+> Referencia completa de endpoints, request/response y enums: ver `APIs_Mexico_Lindo.md`.
+
+**Restricciones por rol (ocultar UI según `rol` de la sesión):**
+- Solo **ADMIN**: gestión de usuarios (`/usuarios`), cancelar viajes, editar viajes finalizados.
+- **GESTOR**: todo lo demás (operación diaria).
+
 ## Configuración Base
 
 ### `services/api.js`
 
 ```javascript
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
+// OJO: el backend NO tiene prefijo /api — base es la raíz del servidor
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
 
 function getHeaders() {
   const session = JSON.parse(localStorage.getItem('mlt_session') || '{}')
@@ -29,11 +36,14 @@ async function apiCall(endpoint, method = 'GET', body = null) {
     }
     
     if (!res.ok) {
-      const err = await res.json()
-      throw new Error(err.message || `HTTP ${res.status}`)
+      // El backend devuelve errores como texto plano, NO JSON
+      const msg = await res.text()
+      throw new Error(msg || `HTTP ${res.status}`)
     }
-    
-    return await res.json()
+
+    // Algunas respuestas de éxito también son texto plano ("Viaje cancelado", etc.)
+    const contentType = res.headers.get('content-type') || ''
+    return contentType.includes('application/json') ? await res.json() : await res.text()
   } catch (error) {
     console.error(`API Error [${method} ${endpoint}]:`, error.message)
     throw error
@@ -89,13 +99,11 @@ export const getClienteHistorial = (id) => apiCall(`/clientes/${id}/historial`)
 // ============================================
 // VIAJES
 // ============================================
-export const getViajes = (params = {}) => {
-  const qs = new URLSearchParams(params).toString()
-  return apiCall(`/viajes${qs ? '?' + qs : ''}`)
-}
+export const getViajes = () => apiCall('/viajes') // sin query params (filtrar en cliente)
+export const getViaje = (id) => apiCall(`/viajes/${id}`)
 export const getViajesCamioneta = (camionetaId) => 
   apiCall(`/viajes/camioneta/${camionetaId}`)
-export const getVijesCliente = (clienteId) => 
+export const getViajesCliente = (clienteId) => 
   apiCall(`/viajes/cliente/${clienteId}`)
 export const postViaje = (data) => apiCall('/viajes', 'POST', data)
 export const putViaje = (id, data) => apiCall(`/viajes/${id}`, 'PUT', data)
@@ -110,8 +118,7 @@ export const deleteViajeCancelar = (id) =>
 // ============================================
 export const getViajePagos = (id) => apiCall(`/viajes/${id}/pagos`)
 export const postViajePago = (id, data) => apiCall(`/viajes/${id}/pagos`, 'POST', data)
-export const putViajePago = (viaje_id, pago_id, data) => 
-  apiCall(`/viajes/${viaje_id}/pagos/${pago_id}`, 'PUT', data)
+// NO existe PUT de pagos: para corregir, eliminar y volver a crear
 export const deleteViajePago = (pagoId) => 
   apiCall(`/viajes/pagos/${pagoId}`, 'DELETE')
 
@@ -120,8 +127,7 @@ export const deleteViajePago = (pagoId) =>
 // ============================================
 export const getViajeGastos = (id) => apiCall(`/viajes/${id}/gastos`)
 export const postViajeGasto = (id, data) => apiCall(`/viajes/${id}/gastos`, 'POST', data)
-export const putViajeGasto = (viaje_id, gasto_id, data) => 
-  apiCall(`/viajes/${viaje_id}/gastos/${gasto_id}`, 'PUT', data)
+// NO existe PUT de gastos: para corregir, eliminar y volver a crear
 export const deleteViajeGasto = (gastoId) => 
   apiCall(`/viajes/gastos/${gastoId}`, 'DELETE')
 
@@ -148,10 +154,11 @@ export const deleteTramite = (id) => apiCall(`/tramites/${id}`, 'DELETE')
 // ============================================
 // GASTOS GENERALES
 // ============================================
-export const getGastosGenerales = (params = {}) => {
-  const qs = new URLSearchParams(params).toString()
-  return apiCall(`/gastos-generales${qs ? '?' + qs : ''}`)
-}
+export const getGastosGenerales = () => apiCall('/gastos-generales')
+export const getGastosGeneralesMes = (mes, anio) => 
+  apiCall(`/gastos-generales/mes?mes=${mes}&anio=${anio}`)
+export const getGastosGeneralesAnio = (anio) => 
+  apiCall(`/gastos-generales/anio?anio=${anio}`)
 export const postGastoGeneral = (data) => apiCall('/gastos-generales', 'POST', data)
 export const putGastoGeneral = (id, data) => apiCall(`/gastos-generales/${id}`, 'PUT', data)
 export const deleteGastoGeneral = (id) => apiCall(`/gastos-generales/${id}`, 'DELETE')
@@ -857,13 +864,13 @@ th, td {
 ### `.env.local`
 
 ```
-VITE_API_URL=http://localhost:8080/api
+VITE_API_URL=http://localhost:8080
 ```
 
 ### `.env.production`
 
 ```
-VITE_API_URL=https://api.mexicolindo.com/api
+VITE_API_URL=https://api.mexicolindo.com
 ```
 
 ---
