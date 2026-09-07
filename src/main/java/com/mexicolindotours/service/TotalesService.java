@@ -47,7 +47,8 @@ public class TotalesService {
 		BigDecimal egresosGenerales = calcularEgresosGenerales(periodo);
 		BigDecimal egresosTotal = egresosViajes.add(egresosCamionetas).add(egresosGenerales);
 		BigDecimal neto = ingresosTotal.subtract(egresosTotal);
-		BigDecimal pendiente = calcularPendientePorCobrar(viajes);
+		BigDecimal pendiente = calcularPendientePorCobrar(viajes)
+				.add(pendientePorReservas(periodo.atDay(1), periodo.atEndOfMonth()));
 
 		return new TotalesDTO(mes, anio, ingresosTotal, egresosViajes, egresosCamionetas, egresosGenerales, egresosTotal, neto, pendiente);
 	}
@@ -86,7 +87,8 @@ public class TotalesService {
 
 		BigDecimal egresosTotal = egresosViajes.add(egresosCamionetas).add(egresosGenerales);
 		BigDecimal neto = ingresosTotal.subtract(egresosTotal);
-		BigDecimal pendiente = calcularPendientePorCobrar(viajes);
+		BigDecimal pendiente = calcularPendientePorCobrar(viajes)
+				.add(pendientePorReservas(java.time.LocalDate.of(anio, 1, 1), java.time.LocalDate.of(anio, 12, 31)));
 
 		return new TotalesDTO(null, anio, ingresosTotal, egresosViajes, egresosCamionetas, egresosGenerales, egresosTotal, neto, pendiente);
 	}
@@ -117,7 +119,8 @@ public class TotalesService {
 
 		BigDecimal egresosTotal = egresosViajes.add(egresosCamionetas).add(egresosGenerales);
 		BigDecimal neto = ingresosTotal.subtract(egresosTotal);
-		BigDecimal pendiente = calcularPendientePorCobrar(viajes);
+		BigDecimal pendiente = calcularPendientePorCobrar(viajes)
+				.add(pendientePorReservas(java.time.LocalDate.of(1900, 1, 1), java.time.LocalDate.of(2999, 12, 31)));
 
 		return new TotalesDTO(null, null, ingresosTotal, egresosViajes, egresosCamionetas, egresosGenerales, egresosTotal, neto, pendiente);
 	}
@@ -170,6 +173,13 @@ public class TotalesService {
 		return gastoGeneralRepository.findAll().stream()
 				.filter(g -> YearMonth.from(g.getFecha()).equals(periodo))
 				.map(GastoGeneral::getMonto)
+				.reduce(BigDecimal.ZERO, BigDecimal::add);
+	}
+
+	/** Saldo por cobrar de las reservas confirmadas (total menos anticipo pagado). */
+	private BigDecimal pendientePorReservas(java.time.LocalDate desde, java.time.LocalDate hasta) {
+		return reservaRepository.confirmadasEntre(desde, hasta).stream()
+				.map(Reserva::saldoPendiente)
 				.reduce(BigDecimal.ZERO, BigDecimal::add);
 	}
 

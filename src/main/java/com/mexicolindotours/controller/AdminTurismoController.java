@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -117,9 +118,11 @@ public class AdminTurismoController {
 	}
 
 	@PutMapping("/reservas/{id}/confirmar")
-	public ResponseEntity<?> confirmar(@PathVariable Long id) {
+	public ResponseEntity<?> confirmar(@PathVariable Long id,
+									   @RequestBody(required = false) ConfirmarPagoRequest request) {
 		try {
-			return ResponseEntity.ok(mapReserva(reservaService.confirmar(id)));
+			BigDecimal monto = request != null ? request.getMontoRecibido() : null;
+			return ResponseEntity.ok(mapReserva(reservaService.confirmar(id, monto)));
 		} catch (IllegalArgumentException e) {
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
 		}
@@ -160,7 +163,8 @@ public class AdminTurismoController {
 				r.getId(), r.getSalida().getId(), r.getSalida().getPaquete().getTitulo(),
 				r.getSalida().getPaquete().getDestino(), r.getSalida().getFechaSalida(), r.getSalida().getFechaRegreso(),
 				r.getUsuarioPublico().getId(), r.getUsuarioPublico().getNombre(), r.getUsuarioPublico().getCorreo(),
-				r.getUsuarioPublico().getTelefono(), r.getNumAsientos(), r.getMontoTotal(), r.getEstado().toString(),
+				r.getUsuarioPublico().getTelefono(), r.getNumAsientos(), r.getMontoTotal(), r.getMontoAnticipo(),
+				r.getMontoPagado(), r.saldoPendiente(), r.getEstado().toString(),
 				r.getComprobanteUrl(), r.getReferenciaTransferencia(), r.getNotas(), r.getConfirmadaAt());
 	}
 

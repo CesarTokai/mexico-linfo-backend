@@ -30,6 +30,14 @@ public class Reserva {
 	@Column(name = "monto_total", nullable = false, precision = 10, scale = 2)
 	private BigDecimal montoTotal;
 
+	/** Lo minimo que hay que cubrir para asegurar los asientos (50% por defecto). */
+	@Column(name = "monto_anticipo", nullable = false, precision = 10, scale = 2)
+	private BigDecimal montoAnticipo = BigDecimal.ZERO;
+
+	/** Dinero efectivamente verificado por el personal. */
+	@Column(name = "monto_pagado", nullable = false, precision = 10, scale = 2)
+	private BigDecimal montoPagado = BigDecimal.ZERO;
+
 	@Column(nullable = false)
 	@Enumerated(EnumType.STRING)
 	private Estado estado = Estado.pendiente_pago;
@@ -65,12 +73,30 @@ public class Reserva {
 	public Reserva() {
 	}
 
-	public Reserva(Salida salida, UsuarioPublico usuarioPublico, Integer numAsientos, BigDecimal montoTotal) {
+	public Reserva(Salida salida, UsuarioPublico usuarioPublico, Integer numAsientos,
+				   BigDecimal montoTotal, BigDecimal montoAnticipo) {
 		this.salida = salida;
 		this.usuarioPublico = usuarioPublico;
 		this.numAsientos = numAsientos;
 		this.montoTotal = montoTotal;
+		this.montoAnticipo = montoAnticipo;
+		this.montoPagado = BigDecimal.ZERO;
 		this.estado = Estado.pendiente_pago;
+	}
+
+	/** Lo que falta por cobrar. Nunca negativo. */
+	public BigDecimal saldoPendiente() {
+		BigDecimal saldo = montoTotal.subtract(montoPagado);
+		return saldo.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : saldo;
+	}
+
+	/** El anticipo ya esta cubierto: los asientos estan asegurados. */
+	public boolean anticipoCubierto() {
+		return montoPagado.compareTo(montoAnticipo) >= 0;
+	}
+
+	public boolean liquidada() {
+		return montoPagado.compareTo(montoTotal) >= 0;
 	}
 
 	/** Una reserva ocupa cupo mientras no este cancelada. */
@@ -88,6 +114,10 @@ public class Reserva {
 	public void setNumAsientos(Integer numAsientos) { this.numAsientos = numAsientos; }
 	public BigDecimal getMontoTotal() { return montoTotal; }
 	public void setMontoTotal(BigDecimal montoTotal) { this.montoTotal = montoTotal; }
+	public BigDecimal getMontoAnticipo() { return montoAnticipo; }
+	public void setMontoAnticipo(BigDecimal montoAnticipo) { this.montoAnticipo = montoAnticipo; }
+	public BigDecimal getMontoPagado() { return montoPagado; }
+	public void setMontoPagado(BigDecimal montoPagado) { this.montoPagado = montoPagado; }
 	public Estado getEstado() { return estado; }
 	public void setEstado(Estado estado) { this.estado = estado; }
 	public String getComprobanteUrl() { return comprobanteUrl; }

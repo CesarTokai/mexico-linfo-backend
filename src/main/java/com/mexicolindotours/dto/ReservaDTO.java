@@ -18,6 +18,9 @@ public class ReservaDTO {
 	private String clienteTelefono;
 	private Integer numAsientos;
 	private BigDecimal montoTotal;
+	private BigDecimal montoAnticipo;
+	private BigDecimal montoPagado;
+	private BigDecimal saldoPendiente;
 	private String estado;
 	private String comprobanteUrl;
 	private String referenciaTransferencia;
@@ -26,7 +29,8 @@ public class ReservaDTO {
 
 	public ReservaDTO(Long id, Long salidaId, String paqueteTitulo, String destino, LocalDate fechaSalida,
 					  LocalDate fechaRegreso, Long usuarioPublicoId, String clienteNombre, String clienteCorreo,
-					  String clienteTelefono, Integer numAsientos, BigDecimal montoTotal, String estado,
+					  String clienteTelefono, Integer numAsientos, BigDecimal montoTotal, BigDecimal montoAnticipo,
+					  BigDecimal montoPagado, BigDecimal saldoPendiente, String estado,
 					  String comprobanteUrl, String referenciaTransferencia, String notas, LocalDateTime confirmadaAt) {
 		this.id = id;
 		this.salidaId = salidaId;
@@ -40,6 +44,9 @@ public class ReservaDTO {
 		this.clienteTelefono = clienteTelefono;
 		this.numAsientos = numAsientos;
 		this.montoTotal = montoTotal;
+		this.montoAnticipo = montoAnticipo;
+		this.montoPagado = montoPagado;
+		this.saldoPendiente = saldoPendiente;
 		this.estado = estado;
 		this.comprobanteUrl = comprobanteUrl;
 		this.referenciaTransferencia = referenciaTransferencia;
@@ -59,6 +66,9 @@ public class ReservaDTO {
 	public String getClienteTelefono() { return clienteTelefono; }
 	public Integer getNumAsientos() { return numAsientos; }
 	public BigDecimal getMontoTotal() { return montoTotal; }
+	public BigDecimal getMontoAnticipo() { return montoAnticipo; }
+	public BigDecimal getMontoPagado() { return montoPagado; }
+	public BigDecimal getSaldoPendiente() { return saldoPendiente; }
 	public String getEstado() { return estado; }
 	public String getComprobanteUrl() { return comprobanteUrl; }
 	public String getReferenciaTransferencia() { return referenciaTransferencia; }

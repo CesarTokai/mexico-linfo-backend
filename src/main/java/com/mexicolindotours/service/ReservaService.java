@@ -12,6 +12,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -31,6 +32,13 @@ public class ReservaService {
 	/** Horas que una reserva puede retener asientos sin comprobante. */
 	@Value("${app.reservas.horas-para-pagar:48}")
 	private long horasParaPagar;
+
+	/** Porcentaje que hay que cubrir para asegurar los asientos. */
+	@Value("${app.reservas.porcentaje-anticipo:50}")
+	private int porcentajeAnticipo;
+
+	@Autowired
+	private NotificacionService notificacionService;
 
 	/**
 	 * Aparta asientos. Va en una transaccion con bloqueo pesimista sobre la
@@ -66,11 +74,17 @@ public class ReservaService {
 		}
 
 		BigDecimal monto = salida.precioEfectivo().multiply(BigDecimal.valueOf(numAsientos));
+		BigDecimal anticipo = monto
+				.multiply(BigDecimal.valueOf(porcentajeAnticipo))
+				.divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
 
-		Reserva reserva = new Reserva(salida, usuario, numAsientos, monto);
+		Reserva reserva = new Reserva(salida, usuario, numAsientos, monto, anticipo);
 		reserva.setNotas(notas);
 
-		return reservaRepository.save(reserva);
+		Reserva guardada = reservaRepository.save(reserva);
+		notificacionService.reservaCreada(guardada);
+
+		return guardada;
 	}
 
 	/** El cliente registra su comprobante de transferencia. */
@@ -83,8 +97,8 @@ public class ReservaService {
 		if (reserva.getEstado() == Reserva.Estado.cancelada) {
 			throw new IllegalArgumentException("La reserva está cancelada");
 		}
-		if (reserva.getEstado() == Reserva.Estado.confirmada) {
-			throw new IllegalArgumentException("La reserva ya está confirmada");
+		if (reserva.liquidada()) {
+			throw new IllegalArgumentException("La reserva ya está liquidada");
 		}
 		if (comprobanteUrl == null || comprobanteUrl.isBlank()) {
 			throw new IllegalArgumentException("Falta el comprobante");
@@ -92,14 +106,25 @@ public class ReservaService {
 
 		reserva.setComprobanteUrl(comprobanteUrl);
 		reserva.setReferenciaTransferencia(referencia);
-		reserva.setEstado(Reserva.Estado.en_revision);
+		// Si ya estaba confirmada, es la liquidacion: no se degrada el estado.
+		if (reserva.getEstado() != Reserva.Estado.confirmada) {
+			reserva.setEstado(Reserva.Estado.en_revision);
+		}
 		reserva.setUpdatedAt(LocalDateTime.now());
 
-		return reservaRepository.save(reserva);
+		Reserva guardada = reservaRepository.save(reserva);
+		notificacionService.comprobanteRecibido(guardada);
+
+		return guardada;
 	}
 
-	/** El personal verifica la transferencia y confirma. */
-	public Reserva confirmar(Long reservaId) {
+	/**
+	 * El personal verifica una transferencia y registra el dinero recibido.
+	 * Si no se indica monto se asume el anticipo pendiente. Los asientos
+	 * quedan asegurados en cuanto lo pagado alcanza el anticipo; el resto
+	 * puede liquidarse despues con otra transferencia.
+	 */
+	public Reserva confirmar(Long reservaId, BigDecimal montoRecibido) {
 		Reserva reserva = obtenerPorId(reservaId);
 
 		if (reserva.getEstado() == Reserva.Estado.cancelada) {
@@ -109,11 +134,44 @@ public class ReservaService {
 			throw new IllegalArgumentException("No hay comprobante que verificar");
 		}
 
+		BigDecimal monto = montoRecibido;
+		if (monto == null) {
+			// Por omision, lo que falte para cubrir el anticipo.
+			monto = reserva.getMontoAnticipo().subtract(reserva.getMontoPagado());
+			if (monto.compareTo(BigDecimal.ZERO) <= 0) {
+				monto = reserva.saldoPendiente();
+			}
+		}
+		if (monto.compareTo(BigDecimal.ZERO) <= 0) {
+			throw new IllegalArgumentException("El monto verificado debe ser mayor que cero");
+		}
+		if (monto.compareTo(reserva.saldoPendiente()) > 0) {
+			throw new IllegalArgumentException(
+					"El monto (" + monto + ") supera el saldo pendiente (" + reserva.saldoPendiente() + ")");
+		}
+
+		// Se valida ANTES de tocar la entidad, para no dejarla a medias.
+		BigDecimal nuevoPagado = reserva.getMontoPagado().add(monto);
+		if (nuevoPagado.compareTo(reserva.getMontoAnticipo()) < 0) {
+			throw new IllegalArgumentException(
+					"Con " + nuevoPagado + " no se cubre el anticipo de " + reserva.getMontoAnticipo());
+		}
+
+		reserva.setMontoPagado(nuevoPagado);
+
+		boolean primeraVez = reserva.getEstado() != Reserva.Estado.confirmada;
 		reserva.setEstado(Reserva.Estado.confirmada);
-		reserva.setConfirmadaAt(LocalDateTime.now());
+		if (primeraVez) {
+			reserva.setConfirmadaAt(LocalDateTime.now());
+		}
 		reserva.setUpdatedAt(LocalDateTime.now());
 
-		return reservaRepository.save(reserva);
+		Reserva guardada = reservaRepository.save(reserva);
+		if (primeraVez) {
+			notificacionService.reservaConfirmada(guardada);
+		}
+
+		return guardada;
 	}
 
 	/** Cancelar libera los asientos de inmediato. */
@@ -147,6 +205,7 @@ public class ReservaService {
 					+ horasParaPagar + " h"));
 			r.setUpdatedAt(LocalDateTime.now());
 			reservaRepository.save(r);
+			notificacionService.reservaCaducada(r);
 		}
 
 		return vencidas.size();

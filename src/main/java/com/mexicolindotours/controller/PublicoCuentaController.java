@@ -169,7 +169,8 @@ public class PublicoCuentaController {
 				r.getId(), r.getSalida().getId(), r.getSalida().getPaquete().getTitulo(),
 				r.getSalida().getPaquete().getDestino(), r.getSalida().getFechaSalida(), r.getSalida().getFechaRegreso(),
 				r.getUsuarioPublico().getId(), r.getUsuarioPublico().getNombre(), r.getUsuarioPublico().getCorreo(),
-				r.getUsuarioPublico().getTelefono(), r.getNumAsientos(), r.getMontoTotal(), r.getEstado().toString(),
+				r.getUsuarioPublico().getTelefono(), r.getNumAsientos(), r.getMontoTotal(), r.getMontoAnticipo(),
+				r.getMontoPagado(), r.saldoPendiente(), r.getEstado().toString(),
 				r.getComprobanteUrl(), r.getReferenciaTransferencia(), r.getNotas(), r.getConfirmadaAt());
 	}
 

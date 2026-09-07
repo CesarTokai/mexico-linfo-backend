@@ -290,6 +290,8 @@ CREATE TABLE IF NOT EXISTS reserva (
     usuario_publico_id        BIGINT NOT NULL,
     num_asientos              INT    NOT NULL,
     monto_total               DECIMAL(10,2) NOT NULL,
+    monto_anticipo            DECIMAL(10,2) NOT NULL DEFAULT 0,
+    monto_pagado              DECIMAL(10,2) NOT NULL DEFAULT 0,
     estado                    ENUM('pendiente_pago','en_revision','confirmada','cancelada') NOT NULL DEFAULT 'pendiente_pago',
     comprobante_url           VARCHAR(500),
     referencia_transferencia  VARCHAR(120),
