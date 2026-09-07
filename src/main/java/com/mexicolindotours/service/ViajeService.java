@@ -44,6 +44,7 @@ public class ViajeService {
 			throw new IllegalArgumentException("Chofer no encontrado");
 		}
 
+		validarFechas(fechaInicio, fechaFin);
 		validarAntiDobleReserva(camionetaId, fechaInicio, fechaFin);
 
 		if (camioneta.getEstado() == Camioneta.Estado.en_taller) {
@@ -81,20 +82,54 @@ public class ViajeService {
 
 	public Viaje actualizarEstado(Long id, Viaje.Estado nuevoEstado) {
 		Viaje viaje = obtenerPorId(id);
+		validarTransicion(viaje.getEstado(), nuevoEstado);
 		viaje.setEstado(nuevoEstado);
 		viaje.setUpdatedAt(LocalDateTime.now());
 		return viajeRepository.save(viaje);
 	}
 
+	/**
+	 * Ciclo de vida: apartado -> en_curso -> finalizado, o cancelado desde
+	 * apartado/en_curso. Un viaje finalizado o cancelado es terminal.
+	 * Se prohibe saltar a finalizado por aqui: eso va por finalizarViaje(),
+	 * que exige km_final y actualiza el odometro de la camioneta.
+	 */
+	private void validarTransicion(Viaje.Estado actual, Viaje.Estado nuevo) {
+		if (nuevo == null) {
+			throw new IllegalArgumentException("Estado destino requerido");
+		}
+		if (actual == nuevo) {
+			return;
+		}
+		if (actual == Viaje.Estado.finalizado || actual == Viaje.Estado.cancelado) {
+			throw new IllegalArgumentException("Un viaje " + actual + " ya no cambia de estado");
+		}
+		if (nuevo == Viaje.Estado.finalizado) {
+			throw new IllegalArgumentException("Para finalizar usa el endpoint de finalizar viaje (requiere km_final)");
+		}
+		if (nuevo == Viaje.Estado.apartado && actual == Viaje.Estado.en_curso) {
+			throw new IllegalArgumentException("Un viaje en curso no puede volver a apartado");
+		}
+	}
+
 	public Viaje finalizarViaje(Long id, Integer kmFinal) {
 		Viaje viaje = obtenerPorId(id);
+
+		if (viaje.getEstado() == Viaje.Estado.cancelado) {
+			throw new IllegalArgumentException("No se puede finalizar un viaje cancelado");
+		}
+
+		if (viaje.getEstado() == Viaje.Estado.finalizado) {
+			throw new IllegalArgumentException("El viaje ya está finalizado");
+		}
 
 		if (kmFinal == null || kmFinal < 0) {
 			throw new IllegalArgumentException("km_final inválido");
 		}
 
-		if (viaje.getKmInicial() != null && kmFinal < viaje.getKmInicial()) {
-			throw new IllegalArgumentException("km_final no puede ser menor que km_inicial");
+		// Regla 11: el recorrido debe ser estrictamente mayor que cero.
+		if (viaje.getKmInicial() != null && kmFinal <= viaje.getKmInicial()) {
+			throw new IllegalArgumentException("km_final debe ser mayor que km_inicial");
 		}
 
 		if (kmFinal < viaje.getCamioneta().getKmActual()) {
@@ -124,11 +159,18 @@ public class ViajeService {
 
 		if (concepto != null) viaje.setConcepto(concepto);
 		if (costoTotal != null) viaje.setCostoTotal(costoTotal);
-		if (kmInicial != null) viaje.setKmInicial(kmInicial);
+		if (kmInicial != null) {
+			validarKmInicial(kmInicial, viaje.getCamioneta());
+			viaje.setKmInicial(kmInicial);
+		}
 
 		if (fechaInicio != null || fechaFin != null) {
 			LocalDate fi = fechaInicio != null ? fechaInicio : viaje.getFechaInicio();
 			LocalDate ff = fechaFin != null ? fechaFin : viaje.getFechaFin();
+			validarFechas(fi, ff);
+			if (viaje.getCamioneta().getEstado() == Camioneta.Estado.en_taller) {
+				throw new IllegalArgumentException("Camioneta en taller, no se pueden mover las fechas del viaje");
+			}
 			validarAntiDobleReserva(viaje.getCamioneta().getId(), fi, ff, id);
 			viaje.setFechaInicio(fi);
 			viaje.setFechaFin(ff);
@@ -152,6 +194,28 @@ public class ViajeService {
 		viajeRepository.save(viaje);
 	}
 
+	private void validarFechas(LocalDate fechaInicio, LocalDate fechaFin) {
+		if (fechaInicio == null || fechaFin == null) {
+			throw new IllegalArgumentException("Las fechas de inicio y fin son obligatorias");
+		}
+		if (fechaFin.isBefore(fechaInicio)) {
+			throw new IllegalArgumentException("La fecha de fin no puede ser anterior a la de inicio");
+		}
+	}
+
+	/** Regla 11: el viaje no puede arrancar por debajo del odometro de la unidad. */
+	private void validarKmInicial(Integer kmInicial, Camioneta camioneta) {
+		if (kmInicial == null) return;
+		if (kmInicial < 0) {
+			throw new IllegalArgumentException("km_inicial inválido");
+		}
+		Integer kmActual = camioneta.getKmActual();
+		if (kmActual != null && kmInicial < kmActual) {
+			throw new IllegalArgumentException(
+					"km_inicial (" + kmInicial + ") no puede ser menor que el km actual de la camioneta (" + kmActual + ")");
+		}
+	}
+
 	private void validarAntiDobleReserva(Long camionetaId, LocalDate fechaInicio, LocalDate fechaFin) {
 		validarAntiDobleReserva(camionetaId, fechaInicio, fechaFin, null);
 	}
@@ -168,8 +232,16 @@ public class ViajeService {
 				continue;
 			}
 
-			boolean traslape = !(fechaFin.isBefore(v.getFechaInicio()) || fechaInicio.isAfter(v.getFechaFin()));
-			if (traslape) {
+			boolean seSolapan = !(fechaFin.isBefore(v.getFechaInicio()) || fechaInicio.isAfter(v.getFechaFin()));
+
+			// Regla C8: una unidad puede regresar el dia X y salir el mismo dia X.
+			// El contacto solo vale si ocurre en UN extremo. Si toca por ambos, son
+			// dos viajes de un solo dia en la misma fecha: eso si es doble reserva.
+			boolean tocaFinDelOtro = fechaInicio.equals(v.getFechaFin());
+			boolean tocaInicioDelOtro = fechaFin.equals(v.getFechaInicio());
+			boolean soloContacto = tocaFinDelOtro ^ tocaInicioDelOtro;
+
+			if (seSolapan && !soloContacto) {
 				throw new IllegalArgumentException("Camioneta ocupada en esas fechas");
 			}
 		}

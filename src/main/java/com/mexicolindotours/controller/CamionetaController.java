@@ -47,7 +47,8 @@ public class CamionetaController {
 		try {
 			Camioneta.Estado estado = request.getEstado() != null ? Camioneta.Estado.valueOf(request.getEstado()) : null;
 			Camioneta c = camionetaService.actualizar(id, request.getNombre(), request.getModelo(),
-													  request.getCapacidad(), estado, request.getKmMantenimiento());
+													  request.getCapacidad(), estado, request.getKmMantenimiento(),
+													  request.getKmActual());
 			return ResponseEntity.ok(mapToDTO(c));
 		} catch (IllegalArgumentException e) {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());

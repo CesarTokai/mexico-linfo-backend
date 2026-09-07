@@ -67,16 +67,27 @@ public class MantenimientoService {
 		mantenimientoRepository.deleteById(id);
 	}
 
+	/**
+	 * Km que faltan para el proximo servicio, contados desde el ULTIMO
+	 * mantenimiento registrado (no desde multiplos del odometro).
+	 * El resultado puede ser NEGATIVO: significa servicio vencido, y asi el
+	 * aviso persiste hasta que se registre el mantenimiento.
+	 */
 	public Optional<Integer> calcularKmsFaltantesParaProximoMantenimiento(Long camionetaId) {
 		Camioneta camioneta = camionetaRepository.findById(camionetaId)
 				.orElseThrow(() -> new IllegalArgumentException("Camioneta no encontrada"));
 
 		int kmActual = camioneta.getKmActual() != null ? camioneta.getKmActual() : 0;
-		int intervaloMantenimiento = camioneta.getIntervaloMantenimientoKm() != null ? camioneta.getIntervaloMantenimientoKm() : 10000;
-		int proximoKmMantenimiento = ((kmActual / intervaloMantenimiento) + 1) * intervaloMantenimiento;
+		int intervalo = camioneta.getIntervaloMantenimientoKm() != null ? camioneta.getIntervaloMantenimientoKm() : 10000;
 
-		int kmsFaltantes = proximoKmMantenimiento - kmActual;
-		return Optional.of(kmsFaltantes);
+		int kmUltimoServicio = mantenimientoRepository
+				.findTopByCamionetaIdAndTipoOrderByKmAlMomentoDesc(camionetaId, Mantenimiento.Tipo.mantenimiento)
+				.map(m -> m.getKmAlMomento() != null ? m.getKmAlMomento() : 0)
+				.orElse(0);
+
+		int proximoKmMantenimiento = kmUltimoServicio + intervalo;
+
+		return Optional.of(proximoKmMantenimiento - kmActual);
 	}
 
 	public boolean debeAvisarMantenimiento(Long camionetaId) {
@@ -92,6 +103,7 @@ public class MantenimientoService {
 		if (kmsFaltantes.isEmpty()) return Optional.empty();
 
 		int kms = kmsFaltantes.get();
+		if (kms <= 0) return Optional.of("VENCIDO");
 		if (kms <= 300) return Optional.of("CRÍTICO");
 		if (kms <= 400) return Optional.of("ALTO");
 		if (kms <= 500) return Optional.of("MEDIO");

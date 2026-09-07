@@ -27,7 +27,7 @@ public class CamionetaService {
 		return camionetaRepository.findAll();
 	}
 
-	public Camioneta actualizar(Long id, String nombre, String modelo, Integer capacidad, Camioneta.Estado estado, Integer intervaloMantenimiento) {
+	public Camioneta actualizar(Long id, String nombre, String modelo, Integer capacidad, Camioneta.Estado estado, Integer intervaloMantenimiento, Integer kmActual) {
 		Camioneta camioneta = camionetaRepository.findById(id)
 				.orElseThrow(() -> new IllegalArgumentException("Camioneta no encontrada"));
 
@@ -36,6 +36,10 @@ public class CamionetaService {
 		if (capacidad != null) camioneta.setCapacidad(capacidad);
 		if (estado != null) camioneta.setEstado(estado);
 		if (intervaloMantenimiento != null) camioneta.setIntervaloMantenimientoKm(intervaloMantenimiento);
+		if (kmActual != null) {
+			if (kmActual < 0) throw new IllegalArgumentException("km_actual inválido");
+			camioneta.setKmActual(kmActual);
+		}
 
 		camioneta.setUpdatedAt(LocalDateTime.now());
 		return camionetaRepository.save(camioneta);

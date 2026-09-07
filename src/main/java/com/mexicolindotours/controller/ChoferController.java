@@ -20,7 +20,7 @@ public class ChoferController {
 	@PostMapping
 	public ResponseEntity<?> crear(@RequestBody ChoferCreateRequest request) {
 		try {
-			Chofer ch = choferService.crear(request.getNombre(), request.getTelefono());
+			Chofer ch = choferService.crear(request.getNombre(), request.getTelefono(), request.getLicenciaVencimiento());
 			return ResponseEntity.status(HttpStatus.CREATED).body(mapToDTO(ch));
 		} catch (Exception e) {
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());

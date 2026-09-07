@@ -28,6 +28,11 @@ public class UsuarioService {
 		return usuarioRepository.save(usuario);
 	}
 
+	/** Instalacion virgen: no hay ni un usuario en la base. */
+	public boolean hayUsuarios() {
+		return usuarioRepository.count() > 0;
+	}
+
 	public Optional<Usuario> obtenerPorCorreo(String correo) {
 		return usuarioRepository.findByCorreoAndActivoTrue(correo);
 	}

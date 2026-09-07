@@ -1,11 +1,14 @@
 package com.mexicolindotours.controller;
 
+import com.mexicolindotours.service.ChoferService;
 import com.mexicolindotours.service.MantenimientoService;
 import com.mexicolindotours.service.TramiteVehiculoService;
 import com.mexicolindotours.service.UsuarioService;
 import com.mexicolindotours.repository.CamionetaRepository;
+import com.mexicolindotours.repository.ChoferRepository;
 import com.mexicolindotours.repository.TramiteVehiculoRepository;
 import com.mexicolindotours.model.Camioneta;
+import com.mexicolindotours.model.Chofer;
 import com.mexicolindotours.model.TramiteVehiculo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -29,16 +32,24 @@ public class AvisosController {
 	@Autowired
 	private TramiteVehiculoRepository tramiteVehiculoRepository;
 
+	@Autowired
+	private ChoferService choferService;
+
+	@Autowired
+	private ChoferRepository choferRepository;
+
 	@GetMapping
 	public ResponseEntity<?> obtenerAvisos() {
 		Map<String, Object> avisos = new HashMap<>();
 
 		List<Map<String, Object>> mantenimientos = calcularAvisosMantenimiento();
 		List<Map<String, Object>> tramites = calcularAvisosTramites();
+		List<Map<String, Object>> licencias = calcularAvisosLicencias();
 
 		avisos.put("mantenimientos", mantenimientos);
 		avisos.put("tramites", tramites);
-		avisos.put("total", mantenimientos.size() + tramites.size());
+		avisos.put("licencias", licencias);
+		avisos.put("total", mantenimientos.size() + tramites.size() + licencias.size());
 
 		return ResponseEntity.ok(avisos);
 	}
@@ -51,6 +62,52 @@ public class AvisosController {
 	@GetMapping("/tramites")
 	public ResponseEntity<?> obtenerAvisosTramites() {
 		return ResponseEntity.ok(calcularAvisosTramites());
+	}
+
+	@GetMapping("/licencias")
+	public ResponseEntity<?> obtenerAvisosLicencias() {
+		return ResponseEntity.ok(calcularAvisosLicencias());
+	}
+
+	/** Licencias por vencer o vencidas. Solo choferes activos. */
+	private List<Map<String, Object>> calcularAvisosLicencias() {
+		List<Map<String, Object>> avisos = new ArrayList<>();
+
+		for (Chofer chofer : choferRepository.findAll()) {
+			if (Boolean.FALSE.equals(chofer.getActivo())) continue;
+			if (chofer.getLicenciaVencimiento() == null) continue;
+
+			Optional<String> nivel = choferService.obtenerNivelAvisoLicencia(chofer.getId());
+			Optional<Long> dias = choferService.calcularDiasParaVencimientoLicencia(chofer.getId());
+
+			if (nivel.isEmpty() || dias.isEmpty()) continue;
+
+			Map<String, Object> aviso = new HashMap<>();
+			aviso.put("choferId", chofer.getId());
+			aviso.put("choferNombre", chofer.getNombre());
+			aviso.put("fechaVencimiento", chofer.getLicenciaVencimiento());
+			aviso.put("diasFaltantes", dias.get());
+			aviso.put("nivel", nivel.get());
+			aviso.put("tipoAviso", "licencia");
+
+			long d = dias.get();
+			aviso.put("vencido", d <= 0);
+			if (d <= 0) {
+				aviso.put("prioridad", 0);
+			} else if (d <= 5) {
+				aviso.put("prioridad", 2);
+			} else if (d <= 10) {
+				aviso.put("prioridad", 3);
+			} else if (d <= 15) {
+				aviso.put("prioridad", 4);
+			} else {
+				aviso.put("prioridad", 5);
+			}
+
+			avisos.add(aviso);
+		}
+
+		return avisos;
 	}
 
 	private List<Map<String, Object>> calcularAvisosMantenimiento() {
@@ -71,7 +128,11 @@ public class AvisosController {
 				aviso.put("tipo", "mantenimiento");
 
 				int kms = kmsFaltantes.get();
-				if (kms <= 300) {
+				aviso.put("vencido", kms <= 0);
+				if (kms <= 0) {
+					aviso.put("kmExcedidos", Math.abs(kms));
+					aviso.put("prioridad", 0);
+				} else if (kms <= 300) {
 					aviso.put("prioridad", 1);
 				} else if (kms <= 400) {
 					aviso.put("prioridad", 2);

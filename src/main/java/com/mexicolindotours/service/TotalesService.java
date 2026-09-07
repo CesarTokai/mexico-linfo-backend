@@ -116,14 +116,17 @@ public class TotalesService {
 		return new TotalesDTO(null, null, ingresosTotal, egresosViajes, egresosCamionetas, egresosGenerales, egresosTotal, neto, pendiente);
 	}
 
+	// Un viaje cancelado sale de las cuentas pero se conserva como historial.
 	private BigDecimal calcularIngresos(List<Viaje> viajes) {
 		return viajes.stream()
+				.filter(v -> v.getEstado() != Viaje.Estado.cancelado)
 				.map(Viaje::getCostoTotal)
 				.reduce(BigDecimal.ZERO, BigDecimal::add);
 	}
 
 	private BigDecimal calcularEgresosViajes(List<Viaje> viajes) {
 		return viajes.stream()
+				.filter(v -> v.getEstado() != Viaje.Estado.cancelado)
 				.flatMap(v -> gastoRepository.findByViajeId(v.getId()).stream())
 				.map(Gasto::getMonto)
 				.reduce(BigDecimal.ZERO, BigDecimal::add);
