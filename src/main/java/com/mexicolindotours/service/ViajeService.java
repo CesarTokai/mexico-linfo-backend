@@ -31,6 +31,9 @@ public class ViajeService {
 	@Autowired
 	private GastoRepository gastoRepository;
 
+	@Autowired
+	private DisponibilidadUnidadService disponibilidadUnidadService;
+
 	public Viaje crear(Long clienteId, Long camionetaId, Long choferId, String concepto,
 					   LocalDate fechaInicio, LocalDate fechaFin, BigDecimal costoTotal) {
 
@@ -220,31 +223,9 @@ public class ViajeService {
 		validarAntiDobleReserva(camionetaId, fechaInicio, fechaFin, null);
 	}
 
+	/** Mira viajes Y salidas publicas: la unidad es una sola. */
 	private void validarAntiDobleReserva(Long camionetaId, LocalDate fechaInicio, LocalDate fechaFin, Long viajeIdActual) {
-		List<Viaje> viajes = viajeRepository.findByCamionetaId(camionetaId);
-
-		for (Viaje v : viajes) {
-			if (viajeIdActual != null && v.getId().equals(viajeIdActual)) {
-				continue;
-			}
-
-			if (v.getEstado() == Viaje.Estado.cancelado) {
-				continue;
-			}
-
-			boolean seSolapan = !(fechaFin.isBefore(v.getFechaInicio()) || fechaInicio.isAfter(v.getFechaFin()));
-
-			// Regla C8: una unidad puede regresar el dia X y salir el mismo dia X.
-			// El contacto solo vale si ocurre en UN extremo. Si toca por ambos, son
-			// dos viajes de un solo dia en la misma fecha: eso si es doble reserva.
-			boolean tocaFinDelOtro = fechaInicio.equals(v.getFechaFin());
-			boolean tocaInicioDelOtro = fechaFin.equals(v.getFechaInicio());
-			boolean soloContacto = tocaFinDelOtro ^ tocaInicioDelOtro;
-
-			if (seSolapan && !soloContacto) {
-				throw new IllegalArgumentException("Camioneta ocupada en esas fechas");
-			}
-		}
+		disponibilidadUnidadService.verificarLibre(camionetaId, fechaInicio, fechaFin, viajeIdActual, null);
 	}
 
 }

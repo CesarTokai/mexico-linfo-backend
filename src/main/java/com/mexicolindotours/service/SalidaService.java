@@ -1,7 +1,9 @@
 package com.mexicolindotours.service;
 
+import com.mexicolindotours.model.Camioneta;
 import com.mexicolindotours.model.Paquete;
 import com.mexicolindotours.model.Salida;
+import com.mexicolindotours.repository.CamionetaRepository;
 import com.mexicolindotours.repository.PaqueteRepository;
 import com.mexicolindotours.repository.ReservaRepository;
 import com.mexicolindotours.repository.SalidaRepository;
@@ -25,8 +27,14 @@ public class SalidaService {
 	@Autowired
 	private ReservaRepository reservaRepository;
 
+	@Autowired
+	private CamionetaRepository camionetaRepository;
+
+	@Autowired
+	private DisponibilidadUnidadService disponibilidadUnidadService;
+
 	public Salida crear(Long paqueteId, LocalDate fechaSalida, LocalDate fechaRegreso,
-						Integer cupoTotal, BigDecimal precioPorPersona) {
+						Integer cupoTotal, BigDecimal precioPorPersona, Long camionetaId) {
 
 		Paquete paquete = paqueteRepository.findById(paqueteId)
 				.orElseThrow(() -> new IllegalArgumentException("Paquete no encontrado"));
@@ -44,11 +52,15 @@ public class SalidaService {
 		Salida s = new Salida(paquete, fechaSalida, fechaRegreso, cupoTotal);
 		s.setPrecioPorPersona(precioPorPersona);
 
+		if (camionetaId != null) {
+			s.setCamioneta(resolverCamionetaLibre(camionetaId, fechaSalida, fechaRegreso, null, cupoTotal));
+		}
+
 		return salidaRepository.save(s);
 	}
 
 	public Salida actualizar(Long id, LocalDate fechaSalida, LocalDate fechaRegreso, Integer cupoTotal,
-							 BigDecimal precioPorPersona, String estado) {
+							 BigDecimal precioPorPersona, String estado, Long camionetaId) {
 
 		Salida s = obtenerPorId(id);
 
@@ -70,6 +82,13 @@ public class SalidaService {
 		s.setFechaRegreso(ff);
 
 		if (precioPorPersona != null) s.setPrecioPorPersona(precioPorPersona);
+
+		// Al mover fechas con unidad ya asignada hay que revalidar el calendario.
+		Long unidad = camionetaId != null ? camionetaId
+				: (s.getCamioneta() != null ? s.getCamioneta().getId() : null);
+		if (unidad != null) {
+			s.setCamioneta(resolverCamionetaLibre(unidad, fi, ff, id, s.getCupoTotal()));
+		}
 
 		if (estado != null && !estado.isBlank()) {
 			try {
@@ -104,6 +123,28 @@ public class SalidaService {
 
 	public int asientosDisponibles(Salida salida) {
 		return salida.getCupoTotal() - reservaRepository.asientosOcupados(salida.getId());
+	}
+
+	/** Valida que la unidad exista, no este en taller, alcance el cupo y este libre. */
+	private Camioneta resolverCamionetaLibre(Long camionetaId, LocalDate desde, LocalDate hasta,
+											 Long salidaIdExcluir, Integer cupoTotal) {
+		Camioneta camioneta = camionetaRepository.findById(camionetaId)
+				.orElseThrow(() -> new IllegalArgumentException("Camioneta no encontrada"));
+
+		if (camioneta.getEstado() == Camioneta.Estado.en_taller) {
+			throw new IllegalArgumentException("Camioneta en taller, no se puede asignar a una salida");
+		}
+		if (camioneta.getEstado() == Camioneta.Estado.baja) {
+			throw new IllegalArgumentException("Camioneta dada de baja");
+		}
+		if (cupoTotal != null && camioneta.getCapacidad() != null && cupoTotal > camioneta.getCapacidad()) {
+			throw new IllegalArgumentException(
+					"El cupo (" + cupoTotal + ") supera la capacidad de la unidad (" + camioneta.getCapacidad() + ")");
+		}
+
+		disponibilidadUnidadService.verificarLibre(camionetaId, desde, hasta, null, salidaIdExcluir);
+
+		return camioneta;
 	}
 
 	public Optional<Salida> obtenerOpcional(Long id) {

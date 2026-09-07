@@ -71,7 +71,7 @@ public class AdminTurismoController {
 	public ResponseEntity<?> crearSalida(@RequestBody SalidaCreateRequest r) {
 		try {
 			Salida s = salidaService.crear(r.getPaqueteId(), r.getFechaSalida(), r.getFechaRegreso(),
-					r.getCupoTotal(), r.getPrecioPorPersona());
+					r.getCupoTotal(), r.getPrecioPorPersona(), r.getCamionetaId());
 			return ResponseEntity.status(HttpStatus.CREATED).body(mapSalida(s));
 		} catch (IllegalArgumentException e) {
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
@@ -82,7 +82,7 @@ public class AdminTurismoController {
 	public ResponseEntity<?> actualizarSalida(@PathVariable Long id, @RequestBody SalidaCreateRequest r) {
 		try {
 			Salida s = salidaService.actualizar(id, r.getFechaSalida(), r.getFechaRegreso(),
-					r.getCupoTotal(), r.getPrecioPorPersona(), r.getEstado());
+					r.getCupoTotal(), r.getPrecioPorPersona(), r.getEstado(), r.getCamionetaId());
 			return ResponseEntity.ok(mapSalida(s));
 		} catch (IllegalArgumentException e) {
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
@@ -150,7 +150,9 @@ public class AdminTurismoController {
 				s.getId(), s.getPaquete().getId(), s.getPaquete().getTitulo(), s.getPaquete().getSlug(),
 				s.getPaquete().getDestino(), s.getPaquete().getImagenUrl(),
 				s.getFechaSalida(), s.getFechaRegreso(), s.getCupoTotal(),
-				salidaService.asientosDisponibles(s), s.precioEfectivo(), s.getEstado().toString());
+				salidaService.asientosDisponibles(s), s.precioEfectivo(), s.getEstado().toString(),
+				s.getCamioneta() != null ? s.getCamioneta().getId() : null,
+				s.getCamioneta() != null ? s.getCamioneta().getNombre() : null);
 	}
 
 	private ReservaDTO mapReserva(Reserva r) {

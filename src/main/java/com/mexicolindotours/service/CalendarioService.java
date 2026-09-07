@@ -3,8 +3,10 @@ package com.mexicolindotours.service;
 import com.mexicolindotours.dto.CalendarioDTO;
 import com.mexicolindotours.dto.CalendarioDTO.OcupacionDTO;
 import com.mexicolindotours.model.Camioneta;
+import com.mexicolindotours.model.Salida;
 import com.mexicolindotours.model.Viaje;
 import com.mexicolindotours.repository.CamionetaRepository;
+import com.mexicolindotours.repository.SalidaRepository;
 import com.mexicolindotours.repository.ViajeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,9 @@ public class CalendarioService {
 	@Autowired
 	private ViajeRepository viajeRepository;
 
+	@Autowired
+	private SalidaRepository salidaRepository;
+
 	public List<CalendarioDTO> obtenerCalendario(LocalDate desde, LocalDate hasta) {
 		List<Camioneta> camionetas = camionetaRepository.findAll();
 
@@ -33,7 +38,7 @@ public class CalendarioService {
 	private CalendarioDTO construirCalendarioCamioneta(Camioneta camioneta, LocalDate desde, LocalDate hasta) {
 		List<Viaje> todosLosViajes = viajeRepository.findByCamionetaId(camioneta.getId());
 
-		List<OcupacionDTO> ocupaciones = todosLosViajes.stream()
+		List<OcupacionDTO> ocupaciones = new ArrayList<>(todosLosViajes.stream()
 				.filter(v -> !v.getEstado().equals(Viaje.Estado.cancelado))
 				.filter(v -> tieneTraslape(v.getFechaInicio(), v.getFechaFin(), desde, hasta))
 				.map(v -> new OcupacionDTO(
@@ -45,7 +50,23 @@ public class CalendarioService {
 						v.getConcepto(),
 						v.getEstado().toString()
 				))
-				.collect(Collectors.toList());
+				.collect(Collectors.toList()));
+
+		// Las salidas publicas ocupan la unidad igual que una renta privada:
+		// si no aparecieran aqui, el personal creeria que esta libre.
+		for (Salida sal : salidaRepository.findByCamionetaIdAndEstadoNot(camioneta.getId(), Salida.Estado.cancelada)) {
+			if (!tieneTraslape(sal.getFechaSalida(), sal.getFechaRegreso(), desde, hasta)) continue;
+
+			ocupaciones.add(new OcupacionDTO(
+					sal.getId(),
+					sal.getFechaSalida(),
+					sal.getFechaRegreso(),
+					null,
+					"Salida pública: " + sal.getPaquete().getTitulo(),
+					sal.getPaquete().getDestino(),
+					"salida_" + sal.getEstado()
+			));
+		}
 
 		CalendarioDTO dto = new CalendarioDTO(
 				camioneta.getId(),

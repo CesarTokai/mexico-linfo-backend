@@ -7,6 +7,8 @@ import com.mexicolindotours.repository.ReservaRepository;
 import com.mexicolindotours.repository.SalidaRepository;
 import com.mexicolindotours.repository.UsuarioPublicoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
@@ -25,6 +27,10 @@ public class ReservaService {
 
 	@Autowired
 	private UsuarioPublicoRepository usuarioPublicoRepository;
+
+	/** Horas que una reserva puede retener asientos sin comprobante. */
+	@Value("${app.reservas.horas-para-pagar:48}")
+	private long horasParaPagar;
 
 	/**
 	 * Aparta asientos. Va en una transaccion con bloqueo pesimista sobre la
@@ -123,6 +129,33 @@ public class ReservaService {
 		reserva.setUpdatedAt(LocalDateTime.now());
 
 		return reservaRepository.save(reserva);
+	}
+
+	/**
+	 * Libera los asientos de las reservas que nunca subieron comprobante.
+	 * Sin esto, alguien puede apartar la camioneta entera y no pagar nunca,
+	 * dejando la salida muerta: los asientos jamas volverian al inventario.
+	 */
+	@Scheduled(fixedDelayString = "${app.reservas.intervalo-limpieza-ms:3600000}")
+	public int caducarPendientes() {
+		LocalDateTime limite = LocalDateTime.now().minusHours(horasParaPagar);
+		List<Reserva> vencidas = reservaRepository.pendientesVencidas(limite);
+
+		for (Reserva r : vencidas) {
+			r.setEstado(Reserva.Estado.cancelada);
+			r.setNotas(agregarNota(r.getNotas(), "Cancelada automáticamente: sin comprobante tras "
+					+ horasParaPagar + " h"));
+			r.setUpdatedAt(LocalDateTime.now());
+			reservaRepository.save(r);
+		}
+
+		return vencidas.size();
+	}
+
+	private String agregarNota(String actuales, String nueva) {
+		if (actuales == null || actuales.isBlank()) return nueva;
+		String combinada = actuales + " | " + nueva;
+		return combinada.length() > 500 ? combinada.substring(0, 500) : combinada;
 	}
 
 	public Reserva obtenerPorId(Long id) {

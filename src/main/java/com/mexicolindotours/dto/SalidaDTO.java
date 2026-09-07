@@ -17,10 +17,12 @@ public class SalidaDTO {
 	private Integer asientosDisponibles;
 	private BigDecimal precioPorPersona;
 	private String estado;
+	private Long camionetaId;
+	private String camionetaNombre;
 
 	public SalidaDTO(Long id, Long paqueteId, String paqueteTitulo, String paqueteSlug, String destino, String imagenUrl,
 					 LocalDate fechaSalida, LocalDate fechaRegreso, Integer cupoTotal, Integer asientosDisponibles,
-					 BigDecimal precioPorPersona, String estado) {
+					 BigDecimal precioPorPersona, String estado, Long camionetaId, String camionetaNombre) {
 		this.id = id;
 		this.paqueteId = paqueteId;
 		this.paqueteTitulo = paqueteTitulo;
@@ -33,6 +35,8 @@ public class SalidaDTO {
 		this.asientosDisponibles = asientosDisponibles;
 		this.precioPorPersona = precioPorPersona;
 		this.estado = estado;
+		this.camionetaId = camionetaId;
+		this.camionetaNombre = camionetaNombre;
 	}
 
 	public Long getId() { return id; }
@@ -47,5 +51,7 @@ public class SalidaDTO {
 	public Integer getAsientosDisponibles() { return asientosDisponibles; }
 	public BigDecimal getPrecioPorPersona() { return precioPorPersona; }
 	public String getEstado() { return estado; }
+	public Long getCamionetaId() { return camionetaId; }
+	public String getCamionetaNombre() { return camionetaNombre; }
 
 }

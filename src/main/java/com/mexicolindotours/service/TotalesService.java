@@ -30,6 +30,9 @@ public class TotalesService {
 	@Autowired
 	private GastoGeneralRepository gastoGeneralRepository;
 
+	@Autowired
+	private ReservaRepository reservaRepository;
+
 	public TotalesDTO obtenerTotalesMes(Integer mes, Integer anio) {
 		YearMonth periodo = YearMonth.of(anio, mes);
 
@@ -37,7 +40,8 @@ public class TotalesService {
 				.filter(v -> YearMonth.from(v.getFechaInicio()).equals(periodo))
 				.toList();
 
-		BigDecimal ingresosTotal = calcularIngresos(viajes);
+		BigDecimal ingresosTotal = calcularIngresos(viajes)
+				.add(ingresosPorReservas(periodo.atDay(1), periodo.atEndOfMonth()));
 		BigDecimal egresosViajes = calcularEgresosViajes(viajes);
 		BigDecimal egresosCamionetas = calcularEgresosCamionetas(periodo);
 		BigDecimal egresosGenerales = calcularEgresosGenerales(periodo);
@@ -53,7 +57,8 @@ public class TotalesService {
 				.filter(v -> v.getFechaInicio().getYear() == anio)
 				.toList();
 
-		BigDecimal ingresosTotal = calcularIngresos(viajes);
+		BigDecimal ingresosTotal = calcularIngresos(viajes)
+				.add(ingresosPorReservas(java.time.LocalDate.of(anio, 1, 1), java.time.LocalDate.of(anio, 12, 31)));
 		BigDecimal egresosViajes = calcularEgresosViajes(viajes);
 
 		List<Mantenimiento> mantenimientos = mantenimientoRepository.findAll().stream()
@@ -89,7 +94,8 @@ public class TotalesService {
 	public TotalesDTO obtenerTotalesAcumulado() {
 		List<Viaje> viajes = viajeRepository.findAll();
 
-		BigDecimal ingresosTotal = calcularIngresos(viajes);
+		BigDecimal ingresosTotal = calcularIngresos(viajes)
+				.add(ingresosPorReservas(java.time.LocalDate.of(1900, 1, 1), java.time.LocalDate.of(2999, 12, 31)));
 		BigDecimal egresosViajes = calcularEgresosViajes(viajes);
 
 		List<Mantenimiento> mantenimientos = mantenimientoRepository.findAll();
@@ -114,6 +120,16 @@ public class TotalesService {
 		BigDecimal pendiente = calcularPendientePorCobrar(viajes);
 
 		return new TotalesDTO(null, null, ingresosTotal, egresosViajes, egresosCamionetas, egresosGenerales, egresosTotal, neto, pendiente);
+	}
+
+	/**
+	 * Ingreso de la venta por asiento. Solo cuentan las reservas confirmadas:
+	 * las pendientes o en revision aun no son dinero cobrado.
+	 */
+	private BigDecimal ingresosPorReservas(java.time.LocalDate desde, java.time.LocalDate hasta) {
+		return reservaRepository.confirmadasEntre(desde, hasta).stream()
+				.map(Reserva::getMontoTotal)
+				.reduce(BigDecimal.ZERO, BigDecimal::add);
 	}
 
 	// Un viaje cancelado sale de las cuentas pero se conserva como historial.

@@ -30,6 +30,24 @@ public interface SalidaRepository extends JpaRepository<Salida, Long> {
 	List<Salida> proximasSalidas(@Param("desde") LocalDate desde);
 
 	/**
+	 * Salidas NO canceladas de una camioneta que se traslapan con un rango.
+	 * Es lo que impide vender la misma unidad dos veces entre el sitio
+	 * publico y las rentas privadas.
+	 */
+	@Query("""
+			SELECT s FROM Salida s
+			WHERE s.camioneta.id = :camionetaId
+			  AND s.estado <> com.mexicolindotours.model.Salida$Estado.cancelada
+			  AND s.fechaSalida <= :hasta
+			  AND s.fechaRegreso >= :desde
+			""")
+	List<Salida> ocupacionDeCamioneta(@Param("camionetaId") Long camionetaId,
+									  @Param("desde") LocalDate desde,
+									  @Param("hasta") LocalDate hasta);
+
+	List<Salida> findByCamionetaIdAndEstadoNot(Long camionetaId, Salida.Estado estado);
+
+	/**
 	 * Bloqueo pesimista: se usa al apartar asientos para que dos reservas
 	 * simultaneas no puedan tomar el mismo ultimo lugar.
 	 */

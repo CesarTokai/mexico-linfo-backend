@@ -115,7 +115,8 @@ public class PublicoCatalogoController {
 				s.getId(), s.getPaquete().getId(), s.getPaquete().getTitulo(), s.getPaquete().getSlug(),
 				s.getPaquete().getDestino(), s.getPaquete().getImagenUrl(),
 				s.getFechaSalida(), s.getFechaRegreso(), s.getCupoTotal(),
-				salidaService.asientosDisponibles(s), s.precioEfectivo(), s.getEstado().toString());
+				salidaService.asientosDisponibles(s), s.precioEfectivo(), s.getEstado().toString(),
+				null, null);
 	}
 
 }
