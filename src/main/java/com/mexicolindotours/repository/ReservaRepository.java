@@ -30,6 +30,17 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
 
 	List<Reserva> findByEstado(Reserva.Estado estado);
 
+	/** Reservas cobradas de las salidas que opero una camioneta concreta. */
+	@Query("""
+			SELECT r FROM Reserva r
+			WHERE r.estado = com.mexicolindotours.model.Reserva$Estado.confirmada
+			  AND r.salida.camioneta.id = :camionetaId
+			  AND r.salida.fechaSalida BETWEEN :desde AND :hasta
+			""")
+	List<Reserva> confirmadasDeCamioneta(@Param("camionetaId") Long camionetaId,
+										 @Param("desde") java.time.LocalDate desde,
+										 @Param("hasta") java.time.LocalDate hasta);
+
 	/** Reservas sin pagar creadas antes de un momento dado. */
 	@Query("""
 			SELECT r FROM Reserva r

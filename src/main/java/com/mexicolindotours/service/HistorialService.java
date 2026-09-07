@@ -37,6 +37,12 @@ public class HistorialService {
 	@Autowired
 	private TramiteVehiculoRepository tramiteVehiculoRepository;
 
+	@Autowired
+	private SalidaRepository salidaRepository;
+
+	@Autowired
+	private ReservaRepository reservaRepository;
+
 	public HistorialChoferDTO obtenerHistorialChofer(Long choferId) {
 		Chofer chofer = choferRepository.findById(choferId)
 				.orElseThrow(() -> new IllegalArgumentException("Chofer no encontrado"));
@@ -103,7 +109,15 @@ public class HistorialService {
 				.map(TramiteVehiculo::getMonto)
 				.reduce(BigDecimal.ZERO, BigDecimal::add);
 
-		return new HistorialCamionetaDTO(camionetaId, camioneta.getNombre(), totalViajes, kmActual, costosMantenimiento, costosTramites);
+		// La unidad tambien opera salidas del catalogo publico.
+		List<Salida> salidas = salidaRepository.findByCamionetaIdAndEstadoNot(camionetaId, Salida.Estado.cancelada);
+		BigDecimal ingresosSalidas = reservaRepository.confirmadasDeCamioneta(
+						camionetaId, java.time.LocalDate.of(1900, 1, 1), java.time.LocalDate.of(2999, 12, 31)).stream()
+				.map(Reserva::getMontoTotal)
+				.reduce(BigDecimal.ZERO, BigDecimal::add);
+
+		return new HistorialCamionetaDTO(camionetaId, camioneta.getNombre(), totalViajes, kmActual,
+				costosMantenimiento, costosTramites, salidas.size(), ingresosSalidas);
 	}
 
 }

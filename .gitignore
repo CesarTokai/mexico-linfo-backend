@@ -37,3 +37,6 @@ yarn-error.log
 
 # Imagenes subidas del blog
 uploads/
+
+# Configuracion local con secretos
+.env

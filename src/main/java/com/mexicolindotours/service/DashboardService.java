@@ -6,6 +6,8 @@ import com.mexicolindotours.repository.CamionetaRepository;
 import com.mexicolindotours.repository.ViajeRepository;
 import com.mexicolindotours.repository.GastoRepository;
 import com.mexicolindotours.repository.PagoRepository;
+import com.mexicolindotours.repository.ReservaRepository;
+import com.mexicolindotours.repository.SalidaRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
@@ -17,6 +19,12 @@ public class DashboardService {
 
 	@Autowired
 	private CamionetaRepository camionetaRepository;
+
+	@Autowired
+	private ReservaRepository reservaRepository;
+
+	@Autowired
+	private SalidaRepository salidaRepository;
 
 	@Autowired
 	private ViajeRepository viajeRepository;
@@ -124,6 +132,10 @@ public class DashboardService {
 				.map(g -> g.getMonto())
 				.reduce(BigDecimal.ZERO, BigDecimal::add);
 
+		// La unidad tambien produce por las salidas publicas que opera.
+		BigDecimal ingresosSalidas = ingresosPorSalidas(camioneta.getId(), periodo.atDay(1), periodo.atEndOfMonth());
+		ingresos = ingresos.add(ingresosSalidas);
+
 		BigDecimal neto = ingresos.subtract(egresos);
 		double porcentajeUtil = viajes.isEmpty() ? 0 : (viajes.size() / 30.0) * 100;
 
@@ -131,6 +143,7 @@ public class DashboardService {
 		result.put("camionetaId", camioneta.getId());
 		result.put("camionetaNombre", camioneta.getNombre());
 		result.put("ingresos", ingresos);
+		result.put("ingresosSalidasPublicas", ingresosSalidas);
 		result.put("egresos", egresos);
 		result.put("neto", neto);
 		result.put("viajesCompletados", viajes.size());
@@ -154,9 +167,14 @@ public class DashboardService {
 				.map(g -> g.getMonto())
 				.reduce(BigDecimal.ZERO, BigDecimal::add);
 
+		BigDecimal ingresosSalidas = ingresosPorSalidas(camioneta.getId(),
+				java.time.LocalDate.of(anio, 1, 1), java.time.LocalDate.of(anio, 12, 31));
+		ingresos = ingresos.add(ingresosSalidas);
+
 		BigDecimal neto = ingresos.subtract(egresos);
 
 		Map<String, Object> result = new HashMap<>();
+		result.put("ingresosSalidasPublicas", ingresosSalidas);
 		result.put("camionetaId", camioneta.getId());
 		result.put("camionetaNombre", camioneta.getNombre());
 		result.put("ingresos", ingresos);
@@ -193,4 +211,12 @@ public class DashboardService {
 
 		return result;
 	}
+
+	/** Ingreso de la venta por asiento atribuible a una unidad. */
+	private BigDecimal ingresosPorSalidas(Long camionetaId, java.time.LocalDate desde, java.time.LocalDate hasta) {
+		return reservaRepository.confirmadasDeCamioneta(camionetaId, desde, hasta).stream()
+				.map(com.mexicolindotours.model.Reserva::getMontoTotal)
+				.reduce(BigDecimal.ZERO, BigDecimal::add);
+	}
+
 }

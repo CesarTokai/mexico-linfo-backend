@@ -29,6 +29,10 @@ public class SecurityConfig {
     @Autowired
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
+    /** Origenes permitidos, configurables por entorno (CORS_ORIGENES). */
+    @org.springframework.beans.factory.annotation.Value("${app.cors.origenes:http://localhost:*}")
+    private String origenesPermitidos;
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -75,7 +79,11 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("http://localhost:*", "http://127.0.0.1:*"));
+        configuration.setAllowedOriginPatterns(
+                Arrays.stream(origenesPermitidos.split(","))
+                        .map(String::trim)
+                        .filter(o -> !o.isEmpty())
+                        .toList());
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
