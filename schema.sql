@@ -313,3 +313,15 @@ CREATE TABLE IF NOT EXISTS favorito (
     CONSTRAINT fk_fav_usuario FOREIGN KEY (usuario_publico_id) REFERENCES usuario_publico(id) ON DELETE CASCADE,
     CONSTRAINT fk_fav_paquete FOREIGN KEY (paquete_id)         REFERENCES paquete(id)         ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS token_recuperacion (
+    id                  BIGINT AUTO_INCREMENT PRIMARY KEY,
+    usuario_publico_id  BIGINT      NOT NULL,
+    -- Se guarda el SHA-256 del token, nunca el token en claro.
+    token_hash          VARCHAR(64) NOT NULL UNIQUE,
+    expira_en           DATETIME(6) NOT NULL,
+    usado               BIT(1)      NOT NULL DEFAULT b'0',
+    created_at          DATETIME(6) NOT NULL,
+    CONSTRAINT fk_token_usuario FOREIGN KEY (usuario_publico_id) REFERENCES usuario_publico(id) ON DELETE CASCADE,
+    INDEX idx_token_usuario (usuario_publico_id, usado)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

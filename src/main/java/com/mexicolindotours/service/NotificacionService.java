@@ -1,6 +1,7 @@
 package com.mexicolindotours.service;
 
 import com.mexicolindotours.model.Reserva;
+import com.mexicolindotours.model.UsuarioPublico;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +35,23 @@ public class NotificacionService {
 	/** Buzon del personal que verifica las transferencias. */
 	@Value("${app.notificaciones.correo-operacion:}")
 	private String correoOperacion;
+
+	/** Base del sitio para armar el enlace de restablecimiento. */
+	@Value("${app.frontend.url:http://localhost:5173}")
+	private String urlFrontend;
+
+	public void recuperacionPassword(UsuarioPublico usuario, String token, long minutosVigencia) {
+		String enlace = urlFrontend + "/restablecer-password?token=" + token;
+
+		enviar(usuario.getCorreo(),
+				"Restablece tu contraseña — Mexico Lindo Tours",
+				"Hola " + usuario.getNombre() + ",\n\n"
+						+ "Recibimos una solicitud para restablecer tu contraseña. "
+						+ "Abre este enlace para elegir una nueva:\n\n"
+						+ enlace + "\n\n"
+						+ "El enlace vence en " + minutosVigencia + " minutos y sirve una sola vez.\n\n"
+						+ "Si no fuiste tú, ignora este correo: tu contraseña no cambia.");
+	}
 
 	public void reservaCreada(Reserva r) {
 		enviar(r.getUsuarioPublico().getCorreo(),
