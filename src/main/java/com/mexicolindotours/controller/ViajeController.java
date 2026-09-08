@@ -212,7 +212,8 @@ public class ViajeController {
 	}
 
 	private GastoDTO mapGastoToDTO(Gasto g) {
-		return new GastoDTO(g.getId(), g.getViaje().getId(), g.getTipo().toString(), g.getDescripcion(), g.getMonto());
+		return new GastoDTO(g.getId(), g.getViaje().getId(), g.getTipo().toString(), g.getDescripcion(),
+				g.getFecha(), g.getMonto(), g.getNotas());
 	}
 
 }
