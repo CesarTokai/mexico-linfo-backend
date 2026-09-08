@@ -14,8 +14,12 @@ public class CamionetaService {
 	@Autowired
 	private CamionetaRepository camionetaRepository;
 
-	public Camioneta crear(String nombre, String modelo, Integer capacidad) {
+	public Camioneta crear(String nombre, String modelo, Integer capacidad, Integer kmActual) {
 		Camioneta camioneta = new Camioneta(nombre, modelo, capacidad);
+		if (kmActual != null) {
+			if (kmActual < 0) throw new IllegalArgumentException("km_actual inválido");
+			camioneta.setKmActual(kmActual);
+		}
 		return camionetaRepository.save(camioneta);
 	}
 

@@ -22,7 +22,8 @@ public class CamionetaController {
 	@PostMapping
 	public ResponseEntity<?> crear(@RequestBody CamionetaCreateRequest request) {
 		try {
-			Camioneta c = camionetaService.crear(request.getNombre(), request.getModelo(), request.getCapacidad());
+			Camioneta c = camionetaService.crear(request.getNombre(), request.getModelo(), request.getCapacidad(),
+					request.getKmActual());
 			return ResponseEntity.status(HttpStatus.CREATED).body(mapToDTO(c));
 		} catch (Exception e) {
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());

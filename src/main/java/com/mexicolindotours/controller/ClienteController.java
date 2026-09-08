@@ -20,7 +20,7 @@ public class ClienteController {
 	@PostMapping
 	public ResponseEntity<?> crear(@RequestBody ClienteCreateRequest request) {
 		try {
-			Cliente cl = clienteService.crear(request.getNombre(), request.getTelefono(), request.getEmail());
+			Cliente cl = clienteService.crear(request.getNombre(), request.getTelefono(), request.getNotas());
 			return ResponseEntity.status(HttpStatus.CREATED).body(mapToDTO(cl));
 		} catch (Exception e) {
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
@@ -43,7 +43,7 @@ public class ClienteController {
 	@PutMapping("/{id}")
 	public ResponseEntity<?> actualizar(@PathVariable Long id, @RequestBody ClienteUpdateRequest request) {
 		try {
-			Cliente cl = clienteService.actualizar(id, request.getNombre(), request.getTelefono(), request.getEmail());
+			Cliente cl = clienteService.actualizar(id, request.getNombre(), request.getTelefono(), request.getNotas());
 			return ResponseEntity.ok(mapToDTO(cl));
 		} catch (IllegalArgumentException e) {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());

@@ -3,8 +3,7 @@ package com.mexicolindotours.dto;
 public class ClienteCreateRequest {
     private String nombre;
     private String telefono;
-    private String email;
-    private String ciudad;
+    private String notas;
 
     public ClienteCreateRequest() {}
 
@@ -14,9 +13,6 @@ public class ClienteCreateRequest {
     public String getTelefono() { return telefono; }
     public void setTelefono(String telefono) { this.telefono = telefono; }
 
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
-
-    public String getCiudad() { return ciudad; }
-    public void setCiudad(String ciudad) { this.ciudad = ciudad; }
+    public String getNotas() { return notas; }
+    public void setNotas(String notas) { this.notas = notas; }
 }

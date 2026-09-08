@@ -194,13 +194,13 @@ Response 200: texto `"Disponibilidad eliminada"`.
 
 ### POST /clientes
 ```json
-{ "nombre": "María López", "telefono": "5551112233", "email": "maria@mail.com" }
+{ "nombre": "María López", "telefono": "5551112233", "notas": "Cliente frecuente" }
 ```
 Response 201: ClienteDTO.
 
 ### PUT /clientes/{id}
 ```json
-{ "nombre": "María L.", "telefono": "5551112233", "email": "maria@mail.com" }
+{ "nombre": "María L.", "telefono": "5551112233", "notas": "Cliente frecuente" }
 ```
 Response 200: ClienteDTO. (No hay DELETE de clientes.)
 
