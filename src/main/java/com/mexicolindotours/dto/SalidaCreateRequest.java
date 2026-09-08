@@ -11,6 +11,7 @@ public class SalidaCreateRequest {
 	private Integer cupoTotal;
 	private BigDecimal precioPorPersona;
 	private Long camionetaId;
+	private Long choferId;
 	private String estado;
 
 	public Long getPaqueteId() { return paqueteId; }
@@ -25,6 +26,8 @@ public class SalidaCreateRequest {
 	public void setPrecioPorPersona(BigDecimal precioPorPersona) { this.precioPorPersona = precioPorPersona; }
 	public Long getCamionetaId() { return camionetaId; }
 	public void setCamionetaId(Long camionetaId) { this.camionetaId = camionetaId; }
+	public Long getChoferId() { return choferId; }
+	public void setChoferId(Long choferId) { this.choferId = choferId; }
 	public String getEstado() { return estado; }
 	public void setEstado(String estado) { this.estado = estado; }
 

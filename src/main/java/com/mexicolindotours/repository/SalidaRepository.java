@@ -19,6 +19,16 @@ public interface SalidaRepository extends JpaRepository<Salida, Long> {
 	List<Salida> findByPaqueteIdAndEstadoAndFechaSalidaGreaterThanEqualOrderByFechaSalidaAsc(
 			Long paqueteId, Salida.Estado estado, LocalDate desde);
 
+	/**
+	 * Para el catalogo publico: una salida agotada (cerrada) sigue siendo
+	 * visible con 0 disponibles, no desaparece. Solo se oculta si esta
+	 * cancelada. Distinto de "programada" a secas: si solo mostraramos
+	 * programada, el auto-cierre por cupo (aunque sea de reservas SIN
+	 * pagar, que caducan en 48h) la esconderia del buscador mientras tanto.
+	 */
+	List<Salida> findByPaqueteIdAndEstadoNotAndFechaSalidaGreaterThanEqualOrderByFechaSalidaAsc(
+			Long paqueteId, Salida.Estado estadoExcluido, LocalDate desde);
+
 	/** Proximas salidas de todo el catalogo, para la portada. */
 	@Query("""
 			SELECT s FROM Salida s
@@ -46,6 +56,8 @@ public interface SalidaRepository extends JpaRepository<Salida, Long> {
 									  @Param("hasta") LocalDate hasta);
 
 	List<Salida> findByCamionetaIdAndEstadoNot(Long camionetaId, Salida.Estado estado);
+
+	List<Salida> findByChoferIdAndEstadoNot(Long choferId, Salida.Estado estado);
 
 	/**
 	 * Bloqueo pesimista: se usa al apartar asientos para que dos reservas

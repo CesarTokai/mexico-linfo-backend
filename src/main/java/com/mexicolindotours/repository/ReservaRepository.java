@@ -30,6 +30,32 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
 
 	List<Reserva> findByEstado(Reserva.Estado estado);
 
+	/**
+	 * Reservas canceladas que SI llegaron a pagar algo (el anticipo, tipico).
+	 * Politica del dueno: el anticipo no se devuelve, se queda como ingreso
+	 * de la empresa aunque el viaje no se realice — igual que en los viajes
+	 * particulares cancelados.
+	 */
+	@Query("""
+			SELECT r FROM Reserva r
+			WHERE r.estado = com.mexicolindotours.model.Reserva$Estado.cancelada
+			  AND r.montoPagado > 0
+			  AND r.salida.fechaSalida BETWEEN :desde AND :hasta
+			""")
+	List<Reserva> canceladasConPagoEntre(@Param("desde") java.time.LocalDate desde,
+										 @Param("hasta") java.time.LocalDate hasta);
+
+	@Query("""
+			SELECT r FROM Reserva r
+			WHERE r.estado = com.mexicolindotours.model.Reserva$Estado.cancelada
+			  AND r.montoPagado > 0
+			  AND r.salida.camioneta.id = :camionetaId
+			  AND r.salida.fechaSalida BETWEEN :desde AND :hasta
+			""")
+	List<Reserva> canceladasConPagoDeCamioneta(@Param("camionetaId") Long camionetaId,
+											   @Param("desde") java.time.LocalDate desde,
+											   @Param("hasta") java.time.LocalDate hasta);
+
 	/** Reservas cobradas de las salidas que opero una camioneta concreta. */
 	@Query("""
 			SELECT r FROM Reserva r

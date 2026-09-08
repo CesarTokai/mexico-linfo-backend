@@ -34,6 +34,9 @@ public class ViajeService {
 	@Autowired
 	private DisponibilidadUnidadService disponibilidadUnidadService;
 
+	@Autowired
+	private DisponibilidadChoferService disponibilidadChoferService;
+
 	public Viaje crear(Long clienteId, Long camionetaId, Long choferId, String concepto,
 					   LocalDate fechaInicio, LocalDate fechaFin, BigDecimal costoTotal) {
 
@@ -49,6 +52,9 @@ public class ViajeService {
 
 		validarFechas(fechaInicio, fechaFin);
 		validarAntiDobleReserva(camionetaId, fechaInicio, fechaFin);
+		if (choferId != null) {
+			disponibilidadChoferService.verificarLibre(choferId, fechaInicio, fechaFin, null, null);
+		}
 
 		if (camioneta.getEstado() == Camioneta.Estado.en_taller) {
 			throw new IllegalArgumentException("Camioneta en taller, no disponible");
@@ -183,6 +189,9 @@ public class ViajeService {
 			throw new IllegalArgumentException("Chofer no encontrado");
 		}
 		if (choferId != null) {
+			LocalDate fi = viaje.getFechaInicio();
+			LocalDate ff = viaje.getFechaFin();
+			disponibilidadChoferService.verificarLibre(choferId, fi, ff, id, null);
 			viaje.setChofer(choferRepository.findById(choferId).get());
 		}
 

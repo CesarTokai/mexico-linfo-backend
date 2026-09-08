@@ -110,11 +110,17 @@ public class HistorialService {
 				.reduce(BigDecimal.ZERO, BigDecimal::add);
 
 		// La unidad tambien opera salidas del catalogo publico.
+		java.time.LocalDate desdeSiempre = java.time.LocalDate.of(1900, 1, 1);
+		java.time.LocalDate hastaSiempre = java.time.LocalDate.of(2999, 12, 31);
+
 		List<Salida> salidas = salidaRepository.findByCamionetaIdAndEstadoNot(camionetaId, Salida.Estado.cancelada);
-		BigDecimal ingresosSalidas = reservaRepository.confirmadasDeCamioneta(
-						camionetaId, java.time.LocalDate.of(1900, 1, 1), java.time.LocalDate.of(2999, 12, 31)).stream()
+		BigDecimal ingresosConfirmadas = reservaRepository.confirmadasDeCamioneta(camionetaId, desdeSiempre, hastaSiempre).stream()
 				.map(Reserva::getMontoTotal)
 				.reduce(BigDecimal.ZERO, BigDecimal::add);
+		BigDecimal ingresosCanceladasConPago = reservaRepository.canceladasConPagoDeCamioneta(camionetaId, desdeSiempre, hastaSiempre).stream()
+				.map(Reserva::getMontoPagado)
+				.reduce(BigDecimal.ZERO, BigDecimal::add);
+		BigDecimal ingresosSalidas = ingresosConfirmadas.add(ingresosCanceladasConPago);
 
 		return new HistorialCamionetaDTO(camionetaId, camioneta.getNombre(), totalViajes, kmActual,
 				costosMantenimiento, costosTramites, salidas.size(), ingresosSalidas);

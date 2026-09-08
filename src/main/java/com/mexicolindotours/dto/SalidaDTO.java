@@ -19,10 +19,13 @@ public class SalidaDTO {
 	private String estado;
 	private Long camionetaId;
 	private String camionetaNombre;
+	private Long choferId;
+	private String choferNombre;
 
 	public SalidaDTO(Long id, Long paqueteId, String paqueteTitulo, String paqueteSlug, String destino, String imagenUrl,
 					 LocalDate fechaSalida, LocalDate fechaRegreso, Integer cupoTotal, Integer asientosDisponibles,
-					 BigDecimal precioPorPersona, String estado, Long camionetaId, String camionetaNombre) {
+					 BigDecimal precioPorPersona, String estado, Long camionetaId, String camionetaNombre,
+					 Long choferId, String choferNombre) {
 		this.id = id;
 		this.paqueteId = paqueteId;
 		this.paqueteTitulo = paqueteTitulo;
@@ -37,6 +40,8 @@ public class SalidaDTO {
 		this.estado = estado;
 		this.camionetaId = camionetaId;
 		this.camionetaNombre = camionetaNombre;
+		this.choferId = choferId;
+		this.choferNombre = choferNombre;
 	}
 
 	public Long getId() { return id; }
@@ -53,5 +58,7 @@ public class SalidaDTO {
 	public String getEstado() { return estado; }
 	public Long getCamionetaId() { return camionetaId; }
 	public String getCamionetaNombre() { return camionetaNombre; }
+	public Long getChoferId() { return choferId; }
+	public String getChoferNombre() { return choferNombre; }
 
 }

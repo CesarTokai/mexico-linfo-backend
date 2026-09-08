@@ -126,13 +126,25 @@ public class TotalesService {
 	}
 
 	/**
-	 * Ingreso de la venta por asiento. Solo cuentan las reservas confirmadas:
-	 * las pendientes o en revision aun no son dinero cobrado.
+	 * Ingreso de la venta por asiento.
+	 *
+	 * - Confirmadas: se reconoce la venta completa (montoTotal), igual que
+	 *   un viaje: el servicio ya esta comprometido, aunque falte liquidar.
+	 * - Canceladas: el anticipo no se devuelve (politica del dueno), asi que
+	 *   se reconoce lo que SI se cobro (montoPagado), no el total — el
+	 *   servicio no se va a dar, no tiene sentido contar la venta completa.
+	 * - Pendientes / en revision: nada, todavia no es dinero cobrado.
 	 */
 	private BigDecimal ingresosPorReservas(java.time.LocalDate desde, java.time.LocalDate hasta) {
-		return reservaRepository.confirmadasEntre(desde, hasta).stream()
+		BigDecimal confirmadas = reservaRepository.confirmadasEntre(desde, hasta).stream()
 				.map(Reserva::getMontoTotal)
 				.reduce(BigDecimal.ZERO, BigDecimal::add);
+
+		BigDecimal canceladasConPago = reservaRepository.canceladasConPagoEntre(desde, hasta).stream()
+				.map(Reserva::getMontoPagado)
+				.reduce(BigDecimal.ZERO, BigDecimal::add);
+
+		return confirmadas.add(canceladasConPago);
 	}
 
 	// Un viaje cancelado sale de las cuentas pero se conserva como historial.

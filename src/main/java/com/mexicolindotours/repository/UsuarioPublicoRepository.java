@@ -12,6 +12,12 @@ public interface UsuarioPublicoRepository extends JpaRepository<UsuarioPublico, 
 
 	Optional<UsuarioPublico> findByCorreoAndActivoTrue(String correo);
 
+	Optional<UsuarioPublico> findByTelefono(String telefono);
+
+	Optional<UsuarioPublico> findByTelefonoAndActivoTrue(String telefono);
+
 	boolean existsByCorreo(String correo);
+
+	boolean existsByTelefono(String telefono);
 
 }

@@ -19,13 +19,18 @@ public class UsuarioPublico {
 	@Column(nullable = false, length = 120)
 	private String nombre;
 
-	@Column(nullable = false, unique = true, length = 160)
+	/**
+	 * Opcional a proposito: el registro rapido (por telefono/WhatsApp) no
+	 * exige correo. Se puede completar despues desde el perfil.
+	 */
+	@Column(unique = true, length = 160)
 	private String correo;
 
 	@Column(name = "password_hash", nullable = false, length = 255)
 	private String passwordHash;
 
-	@Column(length = 30)
+	/** Identificador principal de login cuando no hay correo. */
+	@Column(nullable = false, unique = true, length = 30)
 	private String telefono;
 
 	@Column(nullable = false)
@@ -37,11 +42,11 @@ public class UsuarioPublico {
 	public UsuarioPublico() {
 	}
 
-	public UsuarioPublico(String nombre, String correo, String passwordHash, String telefono) {
+	public UsuarioPublico(String nombre, String telefono, String passwordHash, String correo) {
 		this.nombre = nombre;
-		this.correo = correo;
-		this.passwordHash = passwordHash;
 		this.telefono = telefono;
+		this.passwordHash = passwordHash;
+		this.correo = correo;
 		this.activo = true;
 	}
 

@@ -241,9 +241,11 @@ CREATE TABLE IF NOT EXISTS post_etiqueta (
 CREATE TABLE IF NOT EXISTS usuario_publico (
     id             BIGINT AUTO_INCREMENT PRIMARY KEY,
     nombre         VARCHAR(120) NOT NULL,
-    correo         VARCHAR(160) NOT NULL UNIQUE,
+    -- Opcional a proposito: el registro rapido no exige correo.
+    correo         VARCHAR(160) UNIQUE,
     password_hash  VARCHAR(255) NOT NULL,
-    telefono       VARCHAR(30),
+    -- Identificador principal de login cuando no hay correo.
+    telefono       VARCHAR(30)  NOT NULL UNIQUE,
     activo         BIT(1)       NOT NULL DEFAULT b'1',
     created_at     DATETIME(6)  NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -274,12 +276,14 @@ CREATE TABLE IF NOT EXISTS salida (
     cupo_total          INT    NOT NULL,
     precio_por_persona  DECIMAL(10,2),
     camioneta_id        BIGINT,
+    chofer_id           BIGINT,
     viaje_id            BIGINT,
     estado              ENUM('programada','cerrada','cancelada') NOT NULL DEFAULT 'programada',
     created_at          DATETIME(6) NOT NULL,
     updated_at          DATETIME(6) NOT NULL,
     CONSTRAINT fk_salida_paquete   FOREIGN KEY (paquete_id)   REFERENCES paquete(id),
     CONSTRAINT fk_salida_camioneta FOREIGN KEY (camioneta_id) REFERENCES camioneta(id),
+    CONSTRAINT fk_salida_chofer    FOREIGN KEY (chofer_id)    REFERENCES chofer(id),
     CONSTRAINT fk_salida_viaje     FOREIGN KEY (viaje_id)     REFERENCES viaje(id),
     INDEX idx_salida_fecha (estado, fecha_salida)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -40,6 +40,12 @@ public class ReservaService {
 	@Autowired
 	private NotificacionService notificacionService;
 
+	@Autowired
+	private SalidaService salidaService;
+
+	@Autowired
+	private UsuarioPublicoService usuarioPublicoService;
+
 	/**
 	 * Aparta asientos. Va en una transaccion con bloqueo pesimista sobre la
 	 * salida: sin eso, dos personas apartando a la vez podrian llevarse ambas
@@ -82,6 +88,7 @@ public class ReservaService {
 		reserva.setNotas(notas);
 
 		Reserva guardada = reservaRepository.save(reserva);
+		salidaService.actualizarCierrePorCupo(salidaId);
 		notificacionService.reservaCreada(guardada);
 
 		return guardada;
@@ -186,7 +193,10 @@ public class ReservaService {
 		reserva.setEstado(Reserva.Estado.cancelada);
 		reserva.setUpdatedAt(LocalDateTime.now());
 
-		return reservaRepository.save(reserva);
+		Reserva guardada = reservaRepository.save(reserva);
+		salidaService.actualizarCierrePorCupo(reserva.getSalida().getId());
+
+		return guardada;
 	}
 
 	/**
@@ -205,6 +215,7 @@ public class ReservaService {
 					+ horasParaPagar + " h"));
 			r.setUpdatedAt(LocalDateTime.now());
 			reservaRepository.save(r);
+			salidaService.actualizarCierrePorCupo(r.getSalida().getId());
 			notificacionService.reservaCaducada(r);
 		}
 
@@ -215,6 +226,43 @@ public class ReservaService {
 		if (actuales == null || actuales.isBlank()) return nueva;
 		String combinada = actuales + " | " + nueva;
 		return combinada.length() > 500 ? combinada.substring(0, 500) : combinada;
+	}
+
+	/**
+	 * Reserva que registra el PERSONAL en nombre de un cliente que no usa la
+	 * app: familias que solo manejan WhatsApp, o que reservan la camioneta
+	 * completa para un evento y arreglan todo por telefono. Se identifica al
+	 * cliente por telefono (se crea la cuenta si no existia) y se reutiliza
+	 * el mismo apartar()/confirmar() que usa el flujo publico, para no
+	 * duplicar la logica de cupo y anticipo que ya esta probada.
+	 */
+	/**
+	 * @Transactional aqui es imprescindible, no decorativo: crearManual
+	 * llama a apartar() y confirmar() DENTRO de la misma clase
+	 * (auto-invocacion). El proxy de Spring que aplica @Transactional a esos
+	 * metodos no se activa en llamadas internas, asi que sin esta anotacion
+	 * en crearManual el bloqueo pesimista de la salida se ejecuta sin
+	 * transaccion y falla.
+	 */
+	@Transactional
+	public Reserva crearManual(Long salidaId, String nombreCliente, String telefonoCliente, String correoCliente,
+							   Integer numAsientos, String notas, boolean marcarConfirmada, BigDecimal montoRecibido) {
+
+		UsuarioPublico cliente = usuarioPublicoService.obtenerOCrearPorTelefono(nombreCliente, telefonoCliente, correoCliente);
+
+		String notaCompleta = "Reservado por el personal" + (notas != null && !notas.isBlank() ? " — " + notas : "");
+		Reserva reserva = apartar(salidaId, cliente.getId(), numAsientos, notaCompleta);
+
+		if (marcarConfirmada) {
+			// El "comprobante" aqui es la palabra del personal, no un archivo:
+			// confirmar() exige que exista comprobanteUrl para no verificar
+			// pagos a ciegas, asi que se deja un marcador explicito.
+			reserva.setComprobanteUrl("registro-manual-del-personal");
+			reservaRepository.save(reserva);
+			reserva = confirmar(reserva.getId(), montoRecibido);
+		}
+
+		return reserva;
 	}
 
 	public Reserva obtenerPorId(Long id) {

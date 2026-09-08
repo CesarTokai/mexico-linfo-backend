@@ -72,7 +72,7 @@ public class AdminTurismoController {
 	public ResponseEntity<?> crearSalida(@RequestBody SalidaCreateRequest r) {
 		try {
 			Salida s = salidaService.crear(r.getPaqueteId(), r.getFechaSalida(), r.getFechaRegreso(),
-					r.getCupoTotal(), r.getPrecioPorPersona(), r.getCamionetaId());
+					r.getCupoTotal(), r.getPrecioPorPersona(), r.getCamionetaId(), r.getChoferId());
 			return ResponseEntity.status(HttpStatus.CREATED).body(mapSalida(s));
 		} catch (IllegalArgumentException e) {
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
@@ -83,7 +83,7 @@ public class AdminTurismoController {
 	public ResponseEntity<?> actualizarSalida(@PathVariable Long id, @RequestBody SalidaCreateRequest r) {
 		try {
 			Salida s = salidaService.actualizar(id, r.getFechaSalida(), r.getFechaRegreso(),
-					r.getCupoTotal(), r.getPrecioPorPersona(), r.getEstado(), r.getCamionetaId());
+					r.getCupoTotal(), r.getPrecioPorPersona(), r.getEstado(), r.getCamionetaId(), r.getChoferId());
 			return ResponseEntity.ok(mapSalida(s));
 		} catch (IllegalArgumentException e) {
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
@@ -98,6 +98,18 @@ public class AdminTurismoController {
 	}
 
 	// ---------- reservas ----------
+
+	@PostMapping("/reservas/manual")
+	public ResponseEntity<?> crearReservaManual(@RequestBody ReservaManualCreateRequest r) {
+		try {
+			Reserva reserva = reservaService.crearManual(
+					r.getSalidaId(), r.getNombreCliente(), r.getTelefonoCliente(), r.getCorreoCliente(),
+					r.getNumAsientos(), r.getNotas(), r.isMarcarConfirmada(), r.getMontoRecibido());
+			return ResponseEntity.status(HttpStatus.CREATED).body(mapReserva(reserva));
+		} catch (IllegalArgumentException e) {
+			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+		}
+	}
 
 	@GetMapping("/reservas")
 	public ResponseEntity<?> listarReservas(@RequestParam(required = false) String estado) {
@@ -155,7 +167,9 @@ public class AdminTurismoController {
 				s.getFechaSalida(), s.getFechaRegreso(), s.getCupoTotal(),
 				salidaService.asientosDisponibles(s), s.precioEfectivo(), s.getEstado().toString(),
 				s.getCamioneta() != null ? s.getCamioneta().getId() : null,
-				s.getCamioneta() != null ? s.getCamioneta().getNombre() : null);
+				s.getCamioneta() != null ? s.getCamioneta().getNombre() : null,
+				s.getChofer() != null ? s.getChofer().getId() : null,
+				s.getChofer() != null ? s.getChofer().getNombre() : null);
 	}
 
 	private ReservaDTO mapReserva(Reserva r) {

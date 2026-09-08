@@ -92,12 +92,19 @@ public class PublicoCatalogoController {
 	}
 
 	private PaqueteResumenDTO mapToResumen(Paquete p) {
-		List<Salida> proximas = salidaService.proximasDelPaquete(p.getId());
+		// El listado incluye salidas agotadas para no ocultarlas del buscador
+		// (regla: una salida cerrada por cupo se muestra, no desaparece).
+		// Para la tarjeta, en cambio, "proxima salida" y "salidas disponibles"
+		// deben reflejar solo lo que SI se puede apartar hoy mismo.
+		List<Salida> conCupo = salidaService.proximasDelPaquete(p.getId()).stream()
+				.filter(s -> salidaService.asientosDisponibles(s) > 0)
+				.collect(Collectors.toList());
+
 		return new PaqueteResumenDTO(
 				p.getId(), p.getTitulo(), p.getSlug(), p.getResumen(), p.getDestino(), p.getCategoria(),
 				p.getImagenUrl(), p.getPrecioPorPersona(), p.getDuracionDias(),
-				proximas.isEmpty() ? null : proximas.get(0).getFechaSalida(),
-				proximas.size(), null);
+				conCupo.isEmpty() ? null : conCupo.get(0).getFechaSalida(),
+				conCupo.size(), null);
 	}
 
 	private PaqueteDetalleDTO mapToDetalle(Paquete p) {
@@ -116,7 +123,7 @@ public class PublicoCatalogoController {
 				s.getPaquete().getDestino(), s.getPaquete().getImagenUrl(),
 				s.getFechaSalida(), s.getFechaRegreso(), s.getCupoTotal(),
 				salidaService.asientosDisponibles(s), s.precioEfectivo(), s.getEstado().toString(),
-				null, null);
+				null, null, null, null);
 	}
 
 }

@@ -212,11 +212,21 @@ public class DashboardService {
 		return result;
 	}
 
-	/** Ingreso de la venta por asiento atribuible a una unidad. */
+	/**
+	 * Ingreso de la venta por asiento atribuible a una unidad.
+	 * Confirmadas cuentan completas; canceladas solo por el anticipo
+	 * cobrado (no se devuelve). Mismo criterio que TotalesService.
+	 */
 	private BigDecimal ingresosPorSalidas(Long camionetaId, java.time.LocalDate desde, java.time.LocalDate hasta) {
-		return reservaRepository.confirmadasDeCamioneta(camionetaId, desde, hasta).stream()
+		BigDecimal confirmadas = reservaRepository.confirmadasDeCamioneta(camionetaId, desde, hasta).stream()
 				.map(com.mexicolindotours.model.Reserva::getMontoTotal)
 				.reduce(BigDecimal.ZERO, BigDecimal::add);
+
+		BigDecimal canceladasConPago = reservaRepository.canceladasConPagoDeCamioneta(camionetaId, desde, hasta).stream()
+				.map(com.mexicolindotours.model.Reserva::getMontoPagado)
+				.reduce(BigDecimal.ZERO, BigDecimal::add);
+
+		return confirmadas.add(canceladasConPago);
 	}
 
 }

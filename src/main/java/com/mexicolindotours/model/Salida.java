@@ -36,6 +36,11 @@ public class Salida {
 	@JoinColumn(name = "camioneta_id")
 	private Camioneta camioneta;
 
+	/** Chofer asignado. Igual que la unidad, puede completarse despues. */
+	@ManyToOne
+	@JoinColumn(name = "chofer_id")
+	private Chofer chofer;
+
 	/** Viaje interno generado cuando la salida se opera. */
 	@ManyToOne
 	@JoinColumn(name = "viaje_id")
@@ -85,6 +90,8 @@ public class Salida {
 	public void setPrecioPorPersona(BigDecimal precioPorPersona) { this.precioPorPersona = precioPorPersona; }
 	public Camioneta getCamioneta() { return camioneta; }
 	public void setCamioneta(Camioneta camioneta) { this.camioneta = camioneta; }
+	public Chofer getChofer() { return chofer; }
+	public void setChofer(Chofer chofer) { this.chofer = chofer; }
 	public Viaje getViaje() { return viaje; }
 	public void setViaje(Viaje viaje) { this.viaje = viaje; }
 	public Estado getEstado() { return estado; }

@@ -36,12 +36,16 @@ class ReservaServiceTest {
 	@Mock private SalidaRepository salidaRepository;
 	@Mock private UsuarioPublicoRepository usuarioPublicoRepository;
 	@Mock private NotificacionService notificacionService;
+	@Mock private SalidaService salidaService;
+	@Mock private UsuarioPublicoService usuarioPublicoService;
 
 	@InjectMocks private ReservaService reservaService;
 
 	private Salida salida;
 	private UsuarioPublico maria;
 	private UsuarioPublico otro;
+
+	private final Reserva[] ultimaGuardada = new Reserva[1];
 
 	@BeforeEach
 	void setUp() {
@@ -62,7 +66,11 @@ class ReservaServiceTest {
 		when(usuarioPublicoRepository.findById(100L)).thenReturn(Optional.of(maria));
 		when(usuarioPublicoRepository.findById(200L)).thenReturn(Optional.of(otro));
 		when(salidaRepository.findByIdBloqueando(10L)).thenReturn(Optional.of(salida));
-		when(reservaRepository.save(any(Reserva.class))).thenAnswer(i -> i.getArgument(0));
+		when(reservaRepository.save(any(Reserva.class))).thenAnswer(i -> {
+			Reserva r = i.getArgument(0);
+			ultimaGuardada[0] = r;
+			return r;
+		});
 	}
 
 	@Nested
@@ -272,6 +280,74 @@ class ReservaServiceTest {
 
 			assertThat(reservaService.caducarPendientes()).isZero();
 			verify(reservaRepository, never()).save(any());
+		}
+	}
+
+
+	@Nested
+	@DisplayName("reserva manual del personal (WhatsApp, walk-in, evento)")
+	class ReservaManual {
+
+		@BeforeEach
+		void stubCupoLibre() {
+			when(reservaRepository.asientosOcupados(10L)).thenReturn(0);
+		}
+
+		@Test
+		@DisplayName("reutiliza al cliente si ya existe por telefono")
+		void reutilizaClienteExistente() {
+			when(usuarioPublicoService.obtenerOCrearPorTelefono("Familia López", "7771234567", null))
+					.thenReturn(maria);
+			when(usuarioPublicoRepository.findById(100L)).thenReturn(Optional.of(maria));
+
+			Reserva r = reservaService.crearManual(10L, "Familia López", "7771234567", null, 4, null, false, null);
+
+			assertThat(r.getUsuarioPublico().getId()).isEqualTo(100L);
+			assertThat(r.getNotas()).contains("Reservado por el personal");
+		}
+
+		@Test
+		@DisplayName("evento/festividad: reserva toda la camioneta en un solo registro")
+		void reservaLaCamionetaCompleta() {
+			when(usuarioPublicoService.obtenerOCrearPorTelefono("Familia Gómez", "7779990000", null))
+					.thenReturn(maria);
+			when(usuarioPublicoRepository.findById(100L)).thenReturn(Optional.of(maria));
+
+			Reserva r = reservaService.crearManual(10L, "Familia Gómez", "7779990000", null, 14,
+					"Boda, camioneta completa", false, null);
+
+			assertThat(r.getNumAsientos()).isEqualTo(14);
+			assertThat(r.getMontoTotal()).isEqualByComparingTo("11900.00");
+		}
+
+		@Test
+		@DisplayName("marcarConfirmada=true deja la reserva ya cobrada, sin pasar por pendiente")
+		void marcaComoConfirmadaDeUnaVez() {
+			when(usuarioPublicoService.obtenerOCrearPorTelefono("Familia López", "7771234567", null))
+					.thenReturn(maria);
+			when(usuarioPublicoRepository.findById(100L)).thenReturn(Optional.of(maria));
+			when(reservaRepository.findById(any())).thenAnswer(inv -> {
+				// simula la relectura que hace confirmar() tras el save de apartar()
+				return Optional.of(ultimaGuardada[0]);
+			});
+
+			Reserva r = reservaService.crearManual(10L, "Familia López", "7771234567", null, 4, null,
+					true, new java.math.BigDecimal("1700.00"));
+
+			assertThat(r.getEstado()).isEqualTo(Reserva.Estado.confirmada);
+			assertThat(r.getMontoPagado()).isEqualByComparingTo("1700.00");
+			assertThat(r.getComprobanteUrl()).contains("registro-manual");
+		}
+
+		@Test
+		@DisplayName("respeta el cupo igual que una reserva publica")
+		void respetaCupo() {
+			when(usuarioPublicoService.obtenerOCrearPorTelefono("Familia Torres", "7775551111", null))
+					.thenReturn(maria);
+			when(reservaRepository.asientosOcupados(10L)).thenReturn(12);
+
+			assertThatThrownBy(() -> reservaService.crearManual(10L, "Familia Torres", "7775551111", null, 5, null, false, null))
+					.hasMessageContaining("Solo quedan 2");
 		}
 	}
 

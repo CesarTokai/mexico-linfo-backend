@@ -40,6 +40,22 @@ public class PublicoCuentaController {
 	@Autowired
 	private AlmacenamientoImagenService almacenamientoImagenService;
 
+	// ---------- perfil ----------
+
+	/** Completar el registro despues: agregar o cambiar el correo. */
+	@PutMapping("/perfil/correo")
+	public ResponseEntity<?> completarCorreo(@RequestBody java.util.Map<String, String> body) {
+		Long uid = usuarioActualId();
+		if (uid == null) return noAutenticado();
+
+		try {
+			usuarioPublicoService.completarCorreo(uid, body.get("correo"));
+			return ResponseEntity.ok("Correo actualizado");
+		} catch (IllegalArgumentException e) {
+			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+		}
+	}
+
 	// ---------- favoritos ----------
 
 	@GetMapping("/favoritos")
@@ -147,7 +163,7 @@ public class PublicoCuentaController {
 		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 		if (auth == null || auth.getName() == null) return null;
 
-		return usuarioPublicoService.obtenerPorCorreo(auth.getName())
+		return usuarioPublicoService.obtenerPorIdentificador(auth.getName())
 				.map(UsuarioPublico::getId)
 				.orElse(null);
 	}
